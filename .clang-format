@@ -1,0 +1,19 @@
+﻿---
+BasedOnStyle: WebKit
+NamespaceIndentation: All
+AllowShortEnumsOnASingleLine: false
+AlignConsecutiveAssignments: Consecutive
+AlignTrailingComments: true
+ColumnLimit: 140
+
+BreakBeforeBraces: Custom
+BraceWrapping:
+  BeforeCatch: true
+  AfterEnum: true
+  AfterClass: true
+  AfterStruct: true
+  AfterNamespace: true
+  AfterFunction: false
+  AfterControlStatement: false
+  BeforeElse: true
+...

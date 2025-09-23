@@ -1,0 +1,6 @@
+/.cpm_cache
+/.idea
+.DS_Store
+/build
+/.vs
+/out
