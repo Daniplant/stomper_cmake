@@ -4,187 +4,73 @@
 #include "engine/rhi/rhi.hpp"
 
 #include <mutex>
-#include <thread>
-#include <atomic>
-
-#include <array>
-#include <vector>
-#include <unordered_map>
-
-#include <Metal/Metal.hpp>
-
+#include <memory>
 
 namespace core::rhi
 {
-    struct MetalFence final : public Fence
+    template <typename Impl>
+    class MetalFence : public Fence
     {
-        MetalFence(MTL::Device* device)
-        {
-            refcount.store(0);
-            completed.store(false);
-            event = device->newEvent();
-        }
-    
-        ~MetalFence() override
-        {
-            event->release();
-        }
-        
-        MTL::Event* event;
-        std::atomic_bool completed;
-        std::atomic_int32_t refcount;
-    };
-
-    struct MetalCommandBuffer final : public CommandBuffer
-    {
-        MetalCommandBuffer()
-        {
-            handle = nullptr;
-            fence = nullptr;
-            autorelease = true;
-        }
-
-        ~MetalCommandBuffer() override
-        {
-            handle->release();
-        }
-
-        void reset()
-        {
-            fence = nullptr;
-            autorelease = true;
-            handle->release();
-            handle = nullptr;
-        }
-        
-        bool autorelease;
-        MetalFence* fence;
-        MTL::CommandBuffer* handle;
-    };
-
-    class MetalDevice final : public Device {
-        MetalDevice(bool debug);
-        ~MetalDevice() override;
-
-        bool supports_advanced_sync() override { return true; }
-        
-        bool create_swapchain(SDL_Window* window) override {return false;}
-        void destroy_swapchain(SDL_Window* window) override {};
-
-        CommandBuffer* begin_commandbuffer(CommandQueue queue) override;
-        void end_commandbuffer(CommandBuffer* cmd) override;
-        
-        bool submit_commandbuffers(std::span<CommandBuffer*> cmds) override;
-        
-        std::string get_name() const override;
-        
-    private:
-        MetalFence* fetch_fence();
-        MetalCommandBuffer* fetch_commandbuffer();
-        
-    private:
-        MTL::Device* m_device;
-        MTL::CommandQueue* m_command_queue;
-        std::mutex m_fence_pool_mtx;
-        std::mutex m_commandbuffer_submit_mtx;
-        std::mutex m_commandbuffer_acquire_mtx;
-        
-        std::vector<MetalFence*> m_fence_pool;
-        std::vector<MetalCommandBuffer*> m_commandbuffers_pool;
-        std::vector<MetalCommandBuffer*> m_submitted_commandbuffers;
-    };
-}
-
-// This was the Metal4 version I was writing first.
-// It's not really worth it, I want x86_64 support still
-/*
-namespace core::rhi
-{
-    struct MetalCommandAllocator
-    {
-        MetalCommandAllocator()
-        {
-            handle = nullptr;
-        }
-
-        ~MetalCommandAllocator()
-        {
-            handle->reset();
-            handle->release();
-        }
-
-        void reset()
-        {
-            handle->reset();
-        }
-
-        MTL4::CommandAllocator* handle;
-    };
-
-    struct MetalCommandBuffer final : public CommandBuffer
-    {
-        MetalCommandBuffer()
-        {
-            handle    = nullptr;
-            allocator = nullptr;
-        }
-
-        ~MetalCommandBuffer() override
-        {
-            handle->release();
-        }
-
-        void reset()
-        {
-            allocator = nullptr;
-        }
-
-        CommandQueue queue;
-        MTL4::CommandBuffer* handle;
-        MetalCommandAllocator* allocator;
-    };
-
-    struct MetalFence final : public Fence {
-    public:
+    protected:
         MetalFence() = default;
         ~MetalFence() override = default;
-        
-        MTL::SharedEvent* handle;
-    };
-
-    class MetalDevice final : public Device
-    {
     public:
-        MetalDevice(bool debug);
-        ~MetalDevice() override;
-
-        bool supports_advanced_sync() override { return true; }
         
-        bool create_swapchain(SDL_Window* window) override;
-        void destroy_swapchain(SDL_Window* window) override;
-
-        CommandBuffer* begin_commandbuffer(CommandQueue queue) override;
-        void end_commandbuffer(CommandBuffer* cmd) override;
-        
-        bool submit_commandbuffers(std::span<CommandBuffer*> cmds) override;
-        
-        std::string get_name() const override;
-    
-    private:
-        bool allocate_command_allocator(std::thread::id thread_id);
-        bool allocate_commandbuffer();
-        
-        MetalCommandAllocator* fetch_command_allocator(std::thread::id thread_id);
-        MetalCommandBuffer* fetch_commandbuffer();
-        
-    private:
-        MTL::Device* m_device;
-        std::mutex m_command_allocator_mtx, m_commandbuffer_acquire_mtx, m_commandbuffer_submit_mtx;
-        
-        std::vector<MetalCommandBuffer*> m_free_commandbuffers_pool, m_submitted_commandbuffers;
-        std::array<MTL4::CommandQueue*, (u32) CommandQueue::kMax> m_command_queues;
-        std::unordered_map<std::thread::id, std::vector<MetalCommandAllocator*>> m_command_allocator_pool;
     };
-} // namespace core::rhi
 
-*/
+    template <typename Impl>
+    class MetalCommandBuffer : public CommandBuffer
+    {
+    protected:
+        MetalCommandBuffer() = default;
+        ~MetalCommandBuffer() override = default;
+    public:
+        
+    };
+
+    template <typename Impl>
+    class MetalDevice : public Device
+    {
+    protected:
+        MetalDevice() = default;
+        ~MetalDevice() override = default;
+        
+    public:
+        bool supports_advanced_sync() override
+        {
+            return static_cast<Impl*>(this)->supports_advanced_sync_impl();
+        }
+            
+        bool create_swapchain(SDL_Window* window) override
+        {
+            return static_cast<Impl*>(this)->create_swapchain_impl(window);
+        }
+        
+        void destroy_swapchain(SDL_Window* window) override
+        {
+            static_cast<Impl*>(this)->destroy_swapchain_impl(window);
+        }
+
+        CommandBuffer* begin_commandbuffer(CommandQueue queue) override
+        {
+            return static_cast<Impl*>(this)->begin_commandbuffer_impl(queue);
+        }
+        
+        void end_commandbuffer(CommandBuffer* cmd) override
+        {
+            static_cast<Impl*>(this)->end_commandbuffer_impl(cmd);
+        }
+            
+        bool submit_commandbuffers(std::span<CommandBuffer*> cmds) override
+        {
+            return static_cast<Impl*>(this)->submit_commandbuffers_impl(cmds);
+        }
+            
+        std::string get_name() const override
+        {
+            return static_cast<const Impl*>(this)->get_name_impl();
+        }
+    };
+
+    std::unique_ptr<Device> make_metal_device(bool debug);
+}

@@ -27,7 +27,7 @@ namespace core::rhi
         return nullptr;
 #else
         try {
-            auto device = std::make_unique<MetalDevice>(debug);
+            auto device = make_metal_device(debug);
             return device.release();
         }
         catch (const std::exception& e) {
