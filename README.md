@@ -11,5 +11,5 @@ Mind you that this is an extremely early WIP, nothing works properly and nothing
 ## How to build
 `cmake -S root/of/repo -B root/of/repo/build && cmake --build root/of/repo/build`
 
-## I don't see any validation layer messages
+## I don't see any Vulkan validation layer messages
 Keep the Vulkan configurator open and they should work
