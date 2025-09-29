@@ -20,6 +20,7 @@ int main() {
     device = create_vulkan_device(NullDeviceLUID, true);
 #elif defined(SDL_PLATFORM_APPLE)
     device = create_metal_device(true);
+    spdlog::info(device->get_name());
 #endif
     delete device;
 }
