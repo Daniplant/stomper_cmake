@@ -111,13 +111,24 @@ namespace core::rhi
         
     };
 
+    class Renderpass {
+        CORE_MAKE_INTERFACE_PROTECTED(Renderpass)
+    public:
+    
+    };
+
     class CommandBuffer
     {
         CORE_MAKE_INTERFACE_PROTECTED(CommandBuffer)
-    public:
         
+    public:
+        virtual void wait_for(CommandBuffer* dependency) = 0;
+        virtual void wait_for(std::span<CommandBuffer*> dependencies) = 0;
+        
+        virtual Renderpass* begin_renderpass() = 0;
+        virtual void end_renderpass(Renderpass* renderpass) = 0;
     };
-
+    
     class Device
     {
     protected:
