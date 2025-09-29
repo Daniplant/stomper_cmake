@@ -36,22 +36,7 @@ CPMAddPackage(
         GIT_REPOSITORY https://github.com/catchorg/Catch2
         GIT_TAG v3.10.0
         GIT_SHALLOW TRUE)
-
-
-if(APPLE)
-        CPMAddPackage(
-            NAME Metal-cpp
-            VERSION OS26-beta2
-            URL https://developer.apple.com/metal/cpp/files/metal-cpp_macOS26_iOS26-beta2.zip
-            URL_HASH SHA256=4f0e62aac6a875616d8e86a1cb206158312e52b34de72716773b3785eeb12dc6
-            DOWNLOAD_ONLY TRUE)
-        if(Metal-cpp_ADDED)
-            add_library(Metal-cpp INTERFACE)
-            target_link_libraries(Metal-cpp INTERFACE "-framework Foundation" "-framework Metal" "-framework QuartzCore")
-            target_include_directories(Metal-cpp INTERFACE ${Metal-cpp_SOURCE_DIR})
-        endif()
-endif()
-
+        
 if(WIN32)
     CPMAddPackage(
             NAME DirectX-Headers

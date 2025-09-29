@@ -32,12 +32,15 @@ target_link_libraries(Engine PUBLIC
 		SDL3::SDL3-static
 		Vulkan::Headers
 		Vulkan::UtilityHeaders
-		$<$<PLATFORM_ID:Darwin>:Metal-cpp>
 		$<$<PLATFORM_ID:Windows>:Microsoft::DirectX-Guids;Microsoft::DirectX-Headers;Microsoft::DirectX12-Agility;dxgi;dxguid>)
 
+if(APPLE)
+    target_link_libraries(Engine PUBLIC "-framework Foundation" "-framework Metal" "-framework QuartzCore")
+    target_compile_options(Engine PUBLIC -fobjc-arc)
+endif()
+
 target_compile_definitions(Engine PUBLIC VK_NO_PROTOTYPES)
+
 if(SDL_CPU_X64)
-	target_compile_definitions(Engine PUBLIC
-			CEREAL_XML_STRING_VALUE="heap"
-			"$<$<CXX_COMPILER_ID:Clang,AppleClang>:-mavx2;-mfma>")
+    target_compile_definitions(Engine PUBLIC CEREAL_XML_STRING_VALUE="heap" "$<$<CXX_COMPILER_ID:Clang,AppleClang>:-mavx2;-mfma>")
 endif()
