@@ -3,14 +3,16 @@
 #import <Metal/Metal.h>
 #import <Foundation/Foundation.h>
 
-#include <spdlog/spdlog.h>
+#include <SDL3/SDL_metal.h>
 #include <SDL3/SDL_stdinc.h>
+
+#include <spdlog/spdlog.h>
+#include <spdlog/fmt/bundled/format.h>
 
 #define INITIAL_HEAP_SIZE 256 * 1024 * 1024
 
 namespace core::rhi
 {
-    
     struct MetalFence final : public Fence
     {
     public:
@@ -42,7 +44,7 @@ namespace core::rhi
                     throw std::runtime_error("Failed to create Metal device");
                 }
                 if(![m_device supportsFamily:MTLGPUFamilyMetal3]){
-                    throw std::runtime_error("Failed to create Metal RHI, you need a Metal3-capable device to run this application");
+                    throw std::runtime_error("Failed to create Metal RHI, you need a Metal 3 capable device to run this application");
                 }
                 
                 m_queue = [m_device newCommandQueue];
@@ -79,6 +81,8 @@ namespace core::rhi
                 if(m_debug) {
                     m_buffers_heap.label = @"Buffers heap";
                 }
+                
+                m_name = std::string([[m_device name] UTF8String]);
             }
         }
         
@@ -119,11 +123,12 @@ namespace core::rhi
         
         std::string get_name() const override
         {
-            return std::string([[m_device name] UTF8String]);
+            return m_name;
         }
         
     private:
         bool m_debug;
+        std::string m_name;
         
         id<MTLDevice> m_device;
         id<MTLCommandQueue> m_queue;
