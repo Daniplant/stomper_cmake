@@ -38,135 +38,6 @@
 
 namespace core::rhi
 {
-    /*
-    static std::string GetHResultString(HRESULT hr) 
-    {
-        _com_error error(hr);
-        return error.ErrorMessage();
-    }
-
-    VulkanDevice::VulkanDevice(DeviceLUID luid, bool debug)
-    {
-        auto system_info = vkb::SystemInfo::get_system_info().value();
-
-        if (debug) {
-            if (system_info.validation_layers_available && system_info.debug_utils_available) {
-                m_debug = true;
-                rhi_logger->set_level(spdlog::level::debug);
-                RHI_INFO("Debug layers enabled, expect some performance loss");
-            } else {
-                m_debug = false;
-                RHI_WARN("Debug requested, but either validation layers or debug utils extension are not present. Disabling debug")
-            }
-        }
-
-        if (!system_info.is_extension_available(VK_KHR_EXTERNAL_MEMORY_CAPABILITIES_EXTENSION_NAME) ||
-            !system_info.is_extension_available(VK_KHR_EXTERNAL_FENCE_CAPABILITIES_EXTENSION_NAME) ||
-            !system_info.is_extension_available(VK_KHR_EXTERNAL_SEMAPHORE_CAPABILITIES_EXTENSION_NAME)){
-            throw std::runtime_error("System doesn't support required instance extensions");
-        }
-
-#if defined(SDL_PLATFORM_LINUX)
-        if (system_info.is_extension_available(VK_EXT_SWAPCHAIN_COLOR_SPACE_EXTENSION_NAME)) {
-            m_has_colorspace_support = true;
-        } else {
-            m_has_colorspace_support = false;
-            RHI_WARN("System doesn't support the swapchain color space extension. HDR will not be supported")
-        }
-        m_using_dxgi = false;
-#elif defined(SDL_PLATFORM_WIN32)
-        // On Windows we use DXGI to present to the screen
-        m_using_dxgi = true;
-#endif
-
-        vkb::InstanceBuilder inst_builder;
-        auto inst_result = inst_builder
-            .set_engine_name(ENGINE_NAME)
-            .set_engine_version(1,0,0)
-            .set_app_name(GAME_NAME)
-            .set_app_version(GAME_VERSION_MAJOR, GAME_VERSION_MINOR, GAME_VERSION_PATCH)
-            .require_api_version(1,3,0)
-            .request_validation_layers(m_debug)
-            .enable_extensions({VK_KHR_EXTERNAL_MEMORY_CAPABILITIES_EXTENSION_NAME, VK_KHR_EXTERNAL_FENCE_CAPABILITIES_EXTENSION_NAME, VK_KHR_EXTERNAL_SEMAPHORE_CAPABILITIES_EXTENSION_NAME})
-            .set_debug_messenger_severity(VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT)
-            .set_debug_callback(
-                [](VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
-                VkDebugUtilsMessageTypeFlagsEXT messageType,
-                const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
-                void *pUserData) -> VkBool32 {
-                    switch (messageSeverity) {
-                        case VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT:
-                            RHI_DEBUG("{}", pCallbackData->pMessage);
-                        break;
-                        case VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT:
-                            RHI_INFO("{}", pCallbackData->pMessage);
-                        break;
-                        case VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT:
-                            RHI_WARN("{}", pCallbackData->pMessage);
-                        break;
-                        case VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT:
-                            RHI_ERROR("{}", pCallbackData->pMessage);
-                        break;
-                        default:
-                            break;
-                        }
-                    return VK_FALSE;
-            })
-            .build();
-
-        if (!inst_result) {
-            throw std::runtime_error(std::format("Failed to create Vulkan instance: {}",inst_result.error().message()));
-        }
-        m_instance = inst_result.value();
-
-        VkSurfaceKHR temp_surface;
-        SDL_Window* temp_window = SDL_CreateWindow("", 100, 100, SDL_WINDOW_VULKAN | SDL_WINDOW_HIDDEN);
-        SDL_Vulkan_CreateSurface(temp_window, m_instance, nullptr, &temp_surface);
-        
-        vkb::PhysicalDeviceSelector pdevice_selector(m_instance);
-        auto pdevice_result = pdevice_selector
-            .require_present(true)
-            .set_surface(temp_surface)
-            .prefer_gpu_device_type(vkb::PreferredDeviceType::discrete)
-            .add_required_extensions({
-                VK_KHR_TIMELINE_SEMAPHORE_EXTENSION_NAME, 
-                VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME, 
-                VK_KHR_EXTERNAL_MEMORY_EXTENSION_NAME, 
-                VK_KHR_EXTERNAL_FENCE_EXTENSION_NAME, 
-                VK_KHR_EXTERNAL_SEMAPHORE_EXTENSION_NAME})
-#if defined(SDL_PLATFORM_WIN32)
-            .add_required_extensions({
-                VK_KHR_EXTERNAL_MEMORY_WIN32_EXTENSION_NAME,
-                VK_KHR_EXTERNAL_FENCE_WIN32_EXTENSION_NAME, 
-                VK_KHR_EXTERNAL_SEMAPHORE_WIN32_EXTENSION_NAME})
-#else
-            .add_required_extensions({ 
-                VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME,
-                VK_KHR_EXTERNAL_FENCE_FD_EXTENSION_NAME, 
-                VK_KHR_EXTERNAL_SEMAPHORE_FD_EXTENSION_NAME})
-#endif
-            .select();
-        if (!pdevice_result) {
-            SDL_Vulkan_DestroySurface(m_instance, temp_surface, nullptr);
-            SDL_DestroyWindow(temp_window);
-            throw std::runtime_error(std::format("Failed to selected vulkan physical device: {}", pdevice_result.error().message()));
-        }
-        SDL_Vulkan_DestroySurface(m_instance, temp_surface, nullptr);
-        SDL_DestroyWindow(temp_window);
-
-        m_physicalDevice = pdevice_result.value();
-
-#if defined(SDL_PLATFORM_WIN32)
-        HRESULT hr;
-
-        hr = CreateDXGIFactory2(m_debug ? DXGI_CREATE_FACTORY_DEBUG : 0u, IID_PPV_ARGS(&m_dxgi_factory));
-        if (FAILED(hr)) {
-            throw std::runtime_error(std::format("Failed to create DXGI adapter factory: {}", GetHResultString(hr)));
-        }
-#endif
-    }
-    */
-    
     static VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(
         VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
         VkDebugUtilsMessageTypeFlagsEXT messageType, 
@@ -184,21 +55,23 @@ namespace core::rhi
             case VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT:
                 RHI_ERROR("{}", pCallbackData->pMessage);
             break;
+            default:
+                break;
         };
         return VK_FALSE;
     }
             
-    VulkanDevice::VulkanDevice(DeviceLUID luid, bool debug)
+    VulkanDevice::VulkanDevice(DeviceLUID luid, bool debug) : m_debug(debug)
     {
         // Instance creation
         {
-            VkDebugUtilsMessengerCreateInfoEXT debug_create_info { .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
-                .messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT
-                    | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT,
-                .messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT
-                    | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT,
+            VkDebugUtilsMessengerCreateInfoEXT debug_create_info {
+                .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
+                .messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT,
+                .messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT,
                 .pfnUserCallback = debug_callback,
-                .pUserData       = nullptr };
+                .pUserData = nullptr
+            };
 
             if (auto result = volkInitialize(); result != VK_SUCCESS) {
                 throw std::runtime_error(std::format("Failed to initialize volk: {}", string_VkResult(result)));
@@ -232,10 +105,8 @@ namespace core::rhi
                 }
             }
 
-            m_debug = debug;
             if (m_debug) {
-                m_debug = query_validation_layers() && supports_validation_layer("VK_LAYER_KHRONOS_validation")
-                    && supports_instance_extension(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+                m_debug = query_validation_layers() && supports_validation_layer("VK_LAYER_KHRONOS_validation") && supports_instance_extension(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
                 if (m_debug) {
                     m_enabled_layers.push_back("VK_LAYER_KHRONOS_validation");
                     m_enabled_instance_exts.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
@@ -246,23 +117,26 @@ namespace core::rhi
                 }
             }
 
-            VkApplicationInfo app_info { .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
-                .pNext                          = nullptr,
-                .pApplicationName               = GAME_NAME,
-                .applicationVersion             = VK_MAKE_VERSION(GAME_VERSION_MAJOR, GAME_VERSION_MINOR, GAME_VERSION_PATCH),
-                .pEngineName                    = ENGINE_NAME,
-                .engineVersion                  = VK_MAKE_VERSION(1, 0, 0),
-                .apiVersion                     = VK_API_VERSION_1_2 };
+            VkApplicationInfo app_info {
+                .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
+                .pNext = nullptr,
+                .pApplicationName = GAME_NAME,
+                .applicationVersion = VK_MAKE_VERSION(GAME_VERSION_MAJOR, GAME_VERSION_MINOR, GAME_VERSION_PATCH),
+                .pEngineName = ENGINE_NAME,
+                .engineVersion = VK_MAKE_VERSION(1, 0, 0),
+                .apiVersion = VK_API_VERSION_1_2
+            };
 
-            VkInstanceCreateInfo instance_info { .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
-                .pNext                                  = m_debug ? &debug_create_info : nullptr,
+            VkInstanceCreateInfo instance_info {
+                .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
+                .pNext = m_debug ? &debug_create_info : nullptr,
 #if defined(SDL_PLATFORM_APPLE)
                 .flags = VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR,
 #endif
-                .pApplicationInfo        = &app_info,
-                .enabledLayerCount       = m_debug ? 0 : (u32)m_enabled_layers.size(),
-                .ppEnabledLayerNames     = m_enabled_layers.data(),
-                .enabledExtensionCount   = (u32)m_enabled_instance_exts.size(),
+                .pApplicationInfo = &app_info,
+                .enabledLayerCount = m_debug ? 0 : (u32)m_enabled_layers.size(),
+                .ppEnabledLayerNames = m_enabled_layers.data(),
+                .enabledExtensionCount = (u32)m_enabled_instance_exts.size(),
                 .ppEnabledExtensionNames = m_enabled_instance_exts.data() };
 
             if (auto result = vkCreateInstance(&instance_info, nullptr, &m_instance); result != VK_SUCCESS) {
@@ -271,9 +145,8 @@ namespace core::rhi
             volkLoadInstance(m_instance);
 
             if (m_debug) {
-                if (auto result = vkCreateDebugUtilsMessengerEXT(m_instance, &debug_create_info, nullptr, &m_debug_messenger);
-                    result != VK_SUCCESS) {
-                    m_debug_messenger = VK_NULL_HANDLE;
+                if (auto result = vkCreateDebugUtilsMessengerEXT(m_instance, &debug_create_info, nullptr, &m_debug_messenger); result != VK_SUCCESS) {
+                    m_debug = false;
                     RHI_ERROR("Failed to create Vulkan debug messenger: {}", string_VkResult(result));
                 }
             }
@@ -406,7 +279,7 @@ namespace core::rhi
                     || !m_physical_device_features.features.multiDrawIndirect 
                     || !m_physical_device_features11.multiview
                     || !m_physical_device_features12.descriptorIndexing 
-                    || !m_physical_device_features12.drawIndirectCount
+                    //|| !m_physical_device_features12.drawIndirectCount
                     || !m_physical_device_features12.bufferDeviceAddress
                     || !m_physical_device_features12.descriptorBindingPartiallyBound
                     || !m_physical_device_features12.descriptorBindingUpdateUnusedWhilePending
@@ -433,8 +306,7 @@ namespace core::rhi
                     }
                 }
 
-                // If you have one heap, then you're running on a UMA architecture. The second flag check is technically redundant but oh
-                // well
+                // If you have one heap, then you're running on a UMA architecture. The second flag check is technically redundant but oh well
                 if (memory_props.memoryHeapCount == 1 && memory_props.memoryHeaps[0].flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT) {
                     m_rebar = true;
                 }
@@ -507,25 +379,46 @@ namespace core::rhi
 
                 for (u32 i = 0; i < queue_family_count; ++i) {
                     auto& queueFamily = queue_families[i];
-                    if (m_queue_indices[(u32)CommandQueue::kCopy] == VK_QUEUE_FAMILY_IGNORED && queueFamily.queueCount > 0 && queueFamily.queueFlags & VK_QUEUE_TRANSFER_BIT) {
+                    if (queueFamily.queueCount > 0 &&
+                        queueFamily.queueFlags & VK_QUEUE_TRANSFER_BIT &&
+                        i != m_queue_indices[(u32) CommandQueue::kGeneral] &&
+                        m_queue_indices[(u32)CommandQueue::kCopy] == VK_QUEUE_FAMILY_IGNORED) {
                         m_queue_indices[(u32)CommandQueue::kCopy] = i;
-                        RHI_WARN("Using non-dedicated vulkan transfer queue");
+                        RHI_WARN("Using non-dedicated Vulkan transfer queue");
+                        continue;
                     }
-                    if (m_queue_indices[(u32)CommandQueue::kCompute] == VK_QUEUE_FAMILY_IGNORED && queueFamily.queueCount > 0 && queueFamily.queueFlags & VK_QUEUE_COMPUTE_BIT) {
+                    if (queueFamily.queueCount > 0 &&
+                        queueFamily.queueFlags & VK_QUEUE_COMPUTE_BIT &&
+                        i != m_queue_indices[(u32) CommandQueue::kGeneral] &&
+                        m_queue_indices[(u32)CommandQueue::kCompute] == VK_QUEUE_FAMILY_IGNORED) {
                         m_queue_indices[(u32)CommandQueue::kCompute] = i;
-                        RHI_WARN("Using non-dedicated vulkan compute queue");
+                        RHI_WARN("Using non-dedicated Vulkan compute queue");
+                        continue;
                     }
                 }
             }
-
-            std::unordered_set<u32> unique_families = { 
+            
+            // Just choose one queue if no separate ones are available
+            {
+                if(m_queue_indices[(u32)CommandQueue::kCopy] == VK_QUEUE_FAMILY_IGNORED) {
+                    m_queue_indices[(u32)CommandQueue::kCopy] = m_queue_indices[(u32) CommandQueue::kGeneral];
+                    RHI_WARN("Using non-separated Vulkan transfer queue");
+                }
+                if(m_queue_indices[(u32)CommandQueue::kCompute] == VK_QUEUE_FAMILY_IGNORED) {
+                    m_queue_indices[(u32)CommandQueue::kCompute] = m_queue_indices[(u32) CommandQueue::kGeneral];
+                    RHI_WARN("Using non-separated Vulkan compute queue");
+                }
+            }
+            
+            std::unordered_set<u32> unique_families = {
                 m_queue_indices[(u32)CommandQueue::kGeneral],
                 m_queue_indices[(u32)CommandQueue::kCompute], 
                 m_queue_indices[(u32)CommandQueue::kCopy] 
             };
-
+            
+            m_single_queue = unique_families.size() == 1;
+            
             std::vector<VkDeviceQueueCreateInfo> queue_create_infos;
-
             float queue_priority = 1.0f;
             for (u32 queue_family : unique_families) {
                 VkDeviceQueueCreateInfo queue_create_info = {
@@ -590,7 +483,7 @@ namespace core::rhi
     { 
         vkDestroyDevice(m_device, nullptr);
 
-        if (m_debug && m_debug_messenger != VK_NULL_HANDLE) {
+        if (m_debug) {
            vkDestroyDebugUtilsMessengerEXT(m_instance, m_debug_messenger, nullptr);
         }
         vkDestroyInstance(m_instance, nullptr);
