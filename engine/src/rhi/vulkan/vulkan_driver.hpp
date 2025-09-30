@@ -4,6 +4,7 @@
 #include "engine/rhi/rhi.hpp"
 
 #include "volk.h"
+
 #include <array>
 #include <SDL3/SDL_platform_defines.h>
 
@@ -51,7 +52,6 @@ namespace core::rhi
         bool m_debug;
         bool m_rebar;
         bool m_using_dxgi;
-        bool m_single_queue;
         bool m_has_memory_budget;
         bool m_has_colorspace_ext;
 

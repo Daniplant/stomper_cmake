@@ -185,7 +185,7 @@ namespace core::rhi
                 for (u32 i = 0; i < queue_family_count; ++i) {
                     auto& queue_family = queueFamilies[i];
                     if (queue_family.queueCount > 0 &&
-                        queue_family.queueFlags & VK_QUEUE_COMPUTE_BIT &&
+                          queue_family.queueFlags & VK_QUEUE_COMPUTE_BIT &&
                         !(queue_family.queueFlags & VK_QUEUE_GRAPHICS_BIT)) {
                         return i;
                     }
@@ -263,30 +263,13 @@ namespace core::rhi
                     return false;
                 }
 
-#if defined(SDL_PLATFORM_WIN32)
-                if (const char* error; 
-                    !supports_device_extensions({
-                        VK_KHR_EXTERNAL_MEMORY_WIN32_EXTENSION_NAME, 
-                        VK_KHR_EXTERNAL_FENCE_WIN32_EXTENSION_NAME,
-                        VK_KHR_EXTERNAL_SEMAPHORE_WIN32_EXTENSION_NAME})) {
-                    return false;
-                }
-#elif defined(SDL_PLATFORM_LINUX)
-                if (const char* error;
-                    !supports_device_extensions({
-                        VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME,
-                        VK_KHR_EXTERNAL_FENCE_FD_EXTENSION_NAME,
-                        VK_KHR_EXTERNAL_SEMAPHORE_FD_EXTENSION_NAME})) {
-                    return false;
-                }
-#endif
                 // If you don't have these, sorry but the device is unsupported
                 if (find_gfx_queue(physicalDevice) == VK_QUEUE_FAMILY_IGNORED 
                     || !m_physical_device_features.features.samplerAnisotropy
                     || !m_physical_device_features.features.multiDrawIndirect 
                     || !m_physical_device_features11.multiview
                     || !m_physical_device_features12.descriptorIndexing 
-                    // || !m_physical_device_features12.drawIndirectCount
+                    || !m_physical_device_features12.drawIndirectCount
                     || !m_physical_device_features12.bufferDeviceAddress
                     || !m_physical_device_features12.descriptorBindingPartiallyBound
                     || !m_physical_device_features12.descriptorBindingUpdateUnusedWhilePending
@@ -371,11 +354,11 @@ namespace core::rhi
                 m_enabled_device_exts.push_back(VK_EXT_MEMORY_BUDGET_EXTENSION_NAME);
             }
 
-            m_queue_indices[(u32) CommandQueue::kGeneral] = find_gfx_queue(m_physical_device);
+            m_queue_indices[(u32)CommandQueue::kGeneral] = find_gfx_queue(m_physical_device);
             m_queue_indices[(u32)CommandQueue::kCopy] = find_dedicated_trs_queue(m_physical_device);
             m_queue_indices[(u32)CommandQueue::kCompute] = find_dedicated_cmp_queue(m_physical_device);
 
-            // Separate transfer/compute families if no dedicated are present
+            // If there are no dedicated compute/transfer queues, find other ones
             {
                 u32 queue_family_count = 0;
                 vkGetPhysicalDeviceQueueFamilyProperties(m_physical_device, &queue_family_count, nullptr);
@@ -384,33 +367,20 @@ namespace core::rhi
 
                 for (u32 i = 0; i < queue_family_count; ++i) {
                     auto& queueFamily = queue_families[i];
-                    if (queueFamily.queueCount > 0 &&
-                        queueFamily.queueFlags & VK_QUEUE_TRANSFER_BIT &&
-                        i != m_queue_indices[(u32) CommandQueue::kGeneral] &&
-                        m_queue_indices[(u32)CommandQueue::kCopy] == VK_QUEUE_FAMILY_IGNORED) {
+                    
+                    if (m_queue_indices[(u32)CommandQueue::kCopy] == VK_QUEUE_FAMILY_IGNORED &&
+                        queueFamily.queueCount > 0 &&
+                        queueFamily.queueFlags & VK_QUEUE_TRANSFER_BIT) {;
                         m_queue_indices[(u32)CommandQueue::kCopy] = i;
                         RHI_WARN("Using non-dedicated Vulkan transfer queue");
-                        continue;
                     }
-                    if (queueFamily.queueCount > 0 &&
-                        queueFamily.queueFlags & VK_QUEUE_COMPUTE_BIT &&
-                        i != m_queue_indices[(u32) CommandQueue::kGeneral] &&
-                        m_queue_indices[(u32)CommandQueue::kCompute] == VK_QUEUE_FAMILY_IGNORED) {
+
+                    if (m_queue_indices[(u32)CommandQueue::kCompute] == VK_QUEUE_FAMILY_IGNORED && 
+                        queueFamily.queueCount > 0 && 
+                        queueFamily.queueFlags & VK_QUEUE_COMPUTE_BIT) {
                         m_queue_indices[(u32)CommandQueue::kCompute] = i;
                         RHI_WARN("Using non-dedicated Vulkan compute queue");
                     }
-                }
-            }
-            
-            // Just use the main queue if no separate queue is available
-            {
-                if(m_queue_indices[(u32)CommandQueue::kCopy] == VK_QUEUE_FAMILY_IGNORED) {
-                    m_queue_indices[(u32)CommandQueue::kCopy] = m_queue_indices[(u32) CommandQueue::kGeneral];
-                    RHI_WARN("Using non-separated Vulkan transfer queue");
-                }
-                if(m_queue_indices[(u32)CommandQueue::kCompute] == VK_QUEUE_FAMILY_IGNORED) {
-                    m_queue_indices[(u32)CommandQueue::kCompute] = m_queue_indices[(u32) CommandQueue::kGeneral];
-                    RHI_WARN("Using non-separated Vulkan compute queue");
                 }
             }
             
@@ -419,9 +389,7 @@ namespace core::rhi
                 m_queue_indices[(u32)CommandQueue::kCompute], 
                 m_queue_indices[(u32)CommandQueue::kCopy] 
             };
-            
-            m_single_queue = unique_families.size() == 1;
-            
+
             std::vector<VkDeviceQueueCreateInfo> queue_create_infos;
             float queue_priority = 1.0f;
             for (u32 queue_family : unique_families) {
@@ -467,17 +435,8 @@ namespace core::rhi
              m_uniform_buffers_count
                 = std::min(MAX_STORAGE_BUFFER_DESCRIPTORS, m_physical_device_props.properties.limits.maxDescriptorSetUniformBuffers);
             
-            RHI_INFO("Vulkan Driver {0} created successfully", m_physical_device_props.properties.deviceName);
-            RHI_INFO("ReBar/UMA: {0}, VRAM Size: {1}, VK_EXT_MEMORY_BUDGET: {2}", m_rebar, m_memory_size, m_has_memory_budget);
-            
-            RHI_INFO("\nBindless resource limits:"
-                          "\n\t Samplers: {}"
-                          "\n\t Sampled images:  {}"
-                          "\n\t Storage images:  {}"
-                          "\n\t Storage buffers: {}"
-                          "\n\t Uniform buffers: {}",
-                          m_samplers_count, m_sampled_images_count, m_storage_images_count, m_storage_buffers_count, m_uniform_buffers_count);
-
+            RHI_INFO("Vulkan RHI created successfully");
+            RHI_INFO("Using GPU device {}", get_name());
         }
     }
     
