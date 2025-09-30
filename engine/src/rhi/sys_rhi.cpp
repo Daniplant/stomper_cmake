@@ -16,7 +16,7 @@
 */
 
 #ifdef SDL_PLATFORM_APPLE
-#include "metal/metal_driver.hpp"
+#include "metal/metal_driver_base.hpp"
 #endif
 
 namespace core::rhi
@@ -27,7 +27,7 @@ namespace core::rhi
         return nullptr;
 #else
         try {
-            auto device = make_metal_device(debug);
+            auto device = make_metal3_device(debug);
             return device.release();
         }
         catch (const std::exception& e) {

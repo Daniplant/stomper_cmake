@@ -1,4 +1,4 @@
-#include "metal_driver.hpp"
+#include "metal_driver_base.hpp"
 
 #import <Metal/Metal.h>
 #import <Foundation/Foundation.h>
@@ -11,36 +11,38 @@
 namespace core::rhi
 {
     
-    struct MetalFenceImpl final : public MetalFence<MetalFenceImpl>
+    struct MetalFence final : public Fence
     {
     public:
-        MetalFenceImpl() = default;
-        ~MetalFenceImpl() override = default;
+        MetalFence() = default;
+        ~MetalFence() override = default;
         
     };
 
-    struct MetalCommandBufferImpl final : public MetalCommandBuffer<MetalCommandBufferImpl>
+    struct MetalCommandBuffer final : public CommandBuffer
     {
     public:
-        MetalCommandBufferImpl() = default;
-        ~MetalCommandBufferImpl() override = default;
+        MetalCommandBuffer() = default;
+        ~MetalCommandBuffer() override = default;
     };
 
-    class MetalDeviceImpl final : public MetalDevice<MetalDeviceImpl>
+    class MetalDevice final : public Device
     {
     public:
-        
-        MetalDeviceImpl(bool debug)
+        MetalDevice(bool debug) : m_debug(debug)
         {
             @autoreleasepool
             {
-                if(debug) {
+                if(m_debug) {
                     SDL_setenv_unsafe("MTL_DEBUG_LAYER", "1", 0);
                 }
                 
                 m_device = MTLCreateSystemDefaultDevice();
                 if(!m_device) {
                     throw std::runtime_error("Failed to create Metal device");
+                }
+                if(![m_device supportsFamily:MTLGPUFamilyMetal3]){
+                    throw std::runtime_error("Failed to create Metal RHI, you need a Metal3-capable device to run this application");
                 }
                 
                 m_queue = [m_device newCommandQueue];
@@ -56,7 +58,7 @@ namespace core::rhi
                 if(!m_rendertargets_heap) {
                     throw std::runtime_error("Failed to create render targets heap");
                 }
-                if(debug) {
+                if(m_debug) {
                     m_rendertargets_heap.label = @"Render targets heap";
                 }
                 
@@ -66,7 +68,7 @@ namespace core::rhi
                 if(!m_textures_heap) {
                     throw std::runtime_error("Failed to create textures heap");
                 }
-                if(debug) {
+                if(m_debug) {
                     m_textures_heap.label = @"Textures heap";
                 }
                 
@@ -74,55 +76,55 @@ namespace core::rhi
                 if(!m_buffers_heap) {
                     throw std::runtime_error("Failed to create buffers heap");
                 }
-                if(debug) {
+                if(m_debug) {
                     m_buffers_heap.label = @"Buffers heap";
                 }
-                
-                
             }
         }
         
-        ~MetalDeviceImpl() override
+        ~MetalDevice() override
         {
             
         }
         
-        bool supports_advanced_sync_impl()
+        bool supports_advanced_sync() override
         {
             return true;
         }
         
-        bool create_swapchain_impl(SDL_Window* window)
+        bool create_swapchain(SDL_Window* window) override
         {
             throw std::runtime_error("Not yet implemented");
         }
         
-        void destroy_swapchain_impl(SDL_Window* window)
+        void destroy_swapchain(SDL_Window* window) override
         {
             throw std::runtime_error("Not yet implemented");
         }
 
-        CommandBuffer* begin_commandbuffer_impl(CommandQueue queue)
+        CommandBuffer* begin_commandbuffer(CommandQueue queue) override
         {
             throw std::runtime_error("Not yet implemented");
         }
         
-        void end_commandbuffer_impl(CommandBuffer* cmd)
+        void end_commandbuffer(CommandBuffer* cmd) override
         {
             throw std::runtime_error("Not yet implemented");
         }
             
-        bool submit_commandbuffers_impl(std::span<CommandBuffer*> cmds)
+        bool submit_commandbuffers(std::span<CommandBuffer*> cmds) override
         {
             throw std::runtime_error("Not yet implemented");
         }
         
-        std::string get_name_impl() const
+        std::string get_name() const override
         {
             return std::string([[m_device name] UTF8String]);
         }
         
     private:
+        bool m_debug;
+        
         id<MTLDevice> m_device;
         id<MTLCommandQueue> m_queue;
         
@@ -134,13 +136,13 @@ namespace core::rhi
         std::mutex m_commandbuffer_submit_mtx;
         std::mutex m_commandbuffer_acquire_mtx;
         
-        std::vector<MetalFenceImpl*> m_fence_pool;
-        std::vector<MetalCommandBufferImpl*> m_commandbuffers_pool;
-        std::vector<MetalCommandBufferImpl*> m_submitted_commandbuffers;
+        std::vector<MetalFence*> m_fence_pool;
+        std::vector<MetalCommandBuffer*> m_commandbuffers_pool;
+        std::vector<MetalCommandBuffer*> m_submitted_commandbuffers;
     };
-
-    std::unique_ptr<Device> make_metal_device(bool debug)
+    
+    std::unique_ptr<Device> make_metal3_device(bool debug)
     {
-        return std::make_unique<MetalDeviceImpl>(debug);
+        return std::make_unique<MetalDevice>(debug);
     }
 }
