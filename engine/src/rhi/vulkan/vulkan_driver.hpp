@@ -8,6 +8,7 @@
 #include <SDL3/SDL_platform_defines.h>
 
 #if defined(SDL_PLATFORM_WIN32)
+#define NOMINMAX
 #include <wrl.h>
 #include <windows.h>
 #include <dxgi1_6.h>
