@@ -2,8 +2,13 @@
 
 #if defined(SDL_PLATFORM_WIN32)
     #define VK_USE_PLATFORM_WIN32_KHR
+#elif defined(SDL_PLATFORM_LINUX)
+    #define VK_USE_PLATFORM_XCB_KHR
+    #define VK_USE_PLATFORM_XLIB_KHR
+    #define VK_USE_PLATFORM_WAYLAND_KHR
+#elif defined(SDL_PLATFORM_APPLE)
+    #define VK_USE_PLATFORM_METAL_EXT
 #endif
-#include "volk.h"
 
 #define ENGINE_NAME "Stomper"
 
@@ -31,10 +36,6 @@
 
 #include <SDL3/SDL_vulkan.h>
 #include <vulkan/vk_enum_string_helper.h>
-
-#if defined(SDL_PLATFORM_WIN32)
-#include <comdef.h>
-#endif
 
 namespace core::rhi
 {
@@ -397,7 +398,6 @@ namespace core::rhi
                         m_queue_indices[(u32)CommandQueue::kCompute] == VK_QUEUE_FAMILY_IGNORED) {
                         m_queue_indices[(u32)CommandQueue::kCompute] = i;
                         RHI_WARN("Using non-dedicated Vulkan compute queue");
-                        continue;
                     }
                 }
             }
@@ -451,7 +451,6 @@ namespace core::rhi
             vkGetDeviceQueue(m_device, m_queue_indices[(u32)CommandQueue::kGeneral], 0, &m_queues[(u32)CommandQueue::kGeneral]);
             vkGetDeviceQueue(m_device, m_queue_indices[(u32)CommandQueue::kCompute], 0, &m_queues[(u32)CommandQueue::kCompute]);
             vkGetDeviceQueue(m_device, m_queue_indices[(u32)CommandQueue::kCopy], 0, &m_queues[(u32)CommandQueue::kCopy]);
-            
             
              m_samplers_count
                 = std::min(MAX_SAMPLER_DESCRIPTORS, m_physical_device_props.properties.limits.maxDescriptorSetSamplers);

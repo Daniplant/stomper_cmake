@@ -5,7 +5,6 @@
 
 #include "volk.h"
 #include <array>
-#include <string.h>
 #include <SDL3/SDL_platform_defines.h>
 
 #if defined(SDL_PLATFORM_WIN32)
