@@ -81,7 +81,7 @@ namespace core::rhi
                 throw std::runtime_error(std::format("Failed to query available Vulkan instance extensions: {}", string_VkResult(result)));
             }
 
-            // Here we query for the manadatory instance extensions we need
+            // Here we query for the instance extensions we need
             {
                 u32 count;
                 auto sdl_exts = SDL_Vulkan_GetInstanceExtensions(&count);
@@ -90,18 +90,15 @@ namespace core::rhi
                 }
 
                 for (int i = 0; i < count; i++) {
-                    if (!supports_instance_extension(sdl_exts[i])) {
-                        throw std::runtime_error(
-                            std::format("System doesn't support the required Vulkan instance extension {}", sdl_exts[i]));
-                    }
                     m_enabled_instance_exts.push_back(sdl_exts[i]);
                 }
 
-                if (const char* error; !supports_instance_extensions(
-                        { VK_KHR_EXTERNAL_MEMORY_CAPABILITIES_EXTENSION_NAME, VK_KHR_EXTERNAL_FENCE_CAPABILITIES_EXTENSION_NAME,
-                            VK_KHR_EXTERNAL_SEMAPHORE_CAPABILITIES_EXTENSION_NAME },
-                        &error)) {
+                if (const char* error; !supports_instance_extensions(m_enabled_instance_exts,&error)) {
                     throw std::runtime_error(std::format("System doesn't support the required Vulkan instance extension {}", error));
+                }
+                
+                if(m_has_colorspace_ext = supports_instance_extension(VK_EXT_SWAPCHAIN_COLOR_SPACE_EXTENSION_NAME); m_has_colorspace_ext){
+                    m_enabled_instance_exts.push_back(VK_EXT_SWAPCHAIN_COLOR_SPACE_EXTENSION_NAME);
                 }
             }
 
@@ -137,11 +134,13 @@ namespace core::rhi
                 .enabledLayerCount = m_debug ? 0 : (u32)m_enabled_layers.size(),
                 .ppEnabledLayerNames = m_enabled_layers.data(),
                 .enabledExtensionCount = (u32)m_enabled_instance_exts.size(),
-                .ppEnabledExtensionNames = m_enabled_instance_exts.data() };
+                .ppEnabledExtensionNames = m_enabled_instance_exts.data()
+            };
 
             if (auto result = vkCreateInstance(&instance_info, nullptr, &m_instance); result != VK_SUCCESS) {
                 throw std::runtime_error(std::format("Failed to create Vulkan instance: {}", string_VkResult(result)));
             }
+            
             volkLoadInstance(m_instance);
 
             if (m_debug) {
@@ -184,7 +183,9 @@ namespace core::rhi
 
                 for (u32 i = 0; i < queue_family_count; ++i) {
                     auto& queue_family = queueFamilies[i];
-                    if (queue_family.queueCount > 0 && queue_family.queueFlags & VK_QUEUE_COMPUTE_BIT && !(queue_family.queueFlags & VK_QUEUE_GRAPHICS_BIT)) {
+                    if (queue_family.queueCount > 0 &&
+                        queue_family.queueFlags & VK_QUEUE_COMPUTE_BIT &&
+                        !(queue_family.queueFlags & VK_QUEUE_GRAPHICS_BIT)) {
                         return i;
                     }
                 }
@@ -199,7 +200,10 @@ namespace core::rhi
 
                 for (u32 i = 0; i < queue_family_count; ++i) {
                     auto& queue_family = queue_families[i];
-                    if (queue_family.queueCount > 0 && queue_family.queueFlags & VK_QUEUE_TRANSFER_BIT && !(queue_family.queueFlags & VK_QUEUE_GRAPHICS_BIT) && !(queue_family.queueFlags & VK_QUEUE_COMPUTE_BIT)) {
+                    if (queue_family.queueCount > 0 &&
+                        queue_family.queueFlags & VK_QUEUE_TRANSFER_BIT &&
+                        !(queue_family.queueFlags & VK_QUEUE_GRAPHICS_BIT) &&
+                        !(queue_family.queueFlags & VK_QUEUE_COMPUTE_BIT)) {
                         return i;
                     }
                 }
@@ -254,11 +258,7 @@ namespace core::rhi
                 vkGetPhysicalDeviceFeatures2(physicalDevice, &m_physical_device_features);
                 vkGetPhysicalDeviceProperties2(physicalDevice, &m_physical_device_props);
 
-                if (const char* error; !supports_device_extensions({ 
-                    VK_KHR_SWAPCHAIN_EXTENSION_NAME, 
-                    VK_EXT_MEMORY_BUDGET_EXTENSION_NAME,
-                    VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME, 
-                    VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME })) {
+                if (const char* error; !supports_device_extensions(m_enabled_device_exts)) {
                     return false;
                 }
 
@@ -271,7 +271,13 @@ namespace core::rhi
                     return false;
                 }
 #elif defined(SDL_PLATFORM_LINUX)
-                // TODO
+                if (const char* error;
+                    !supports_device_extensions({
+                        VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME,
+                        VK_KHR_EXTERNAL_FENCE_FD_EXTENSION_NAME,
+                        VK_KHR_EXTERNAL_SEMAPHORE_FD_EXTENSION_NAME})) {
+                    return false;
+                }
 #endif
                 // If you don't have these, sorry but the device is unsupported
                 if (find_gfx_queue(physicalDevice) == VK_QUEUE_FAMILY_IGNORED 
@@ -279,7 +285,7 @@ namespace core::rhi
                     || !m_physical_device_features.features.multiDrawIndirect 
                     || !m_physical_device_features11.multiview
                     || !m_physical_device_features12.descriptorIndexing 
-                    //|| !m_physical_device_features12.drawIndirectCount
+                    // || !m_physical_device_features12.drawIndirectCount
                     || !m_physical_device_features12.bufferDeviceAddress
                     || !m_physical_device_features12.descriptorBindingPartiallyBound
                     || !m_physical_device_features12.descriptorBindingUpdateUnusedWhilePending
@@ -325,8 +331,6 @@ namespace core::rhi
                 return true;
             };
            
-             // std::map<u32, VkPhysicalDevice, std::greater<>> m_device_ranking;
-
             u32 devices_count = 0;
             std::vector<VkPhysicalDevice> available_devices;
 
@@ -398,7 +402,7 @@ namespace core::rhi
                 }
             }
             
-            // Just choose one queue if no separate ones are available
+            // Just use the main queue if no separate queue is available
             {
                 if(m_queue_indices[(u32)CommandQueue::kCopy] == VK_QUEUE_FAMILY_IGNORED) {
                     m_queue_indices[(u32)CommandQueue::kCopy] = m_queue_indices[(u32) CommandQueue::kGeneral];
@@ -448,34 +452,33 @@ namespace core::rhi
             vkGetDeviceQueue(m_device, m_queue_indices[(u32)CommandQueue::kCompute], 0, &m_queues[(u32)CommandQueue::kCompute]);
             vkGetDeviceQueue(m_device, m_queue_indices[(u32)CommandQueue::kCopy], 0, &m_queues[(u32)CommandQueue::kCopy]);
             
-            /*
-            m_maxSamplersDescriptorCount
-                = std::min(MAX_SAMPLER_DESCRIPTORS, m_physicalDeviceProperties.properties.limits.maxDescriptorSetSamplers);
+            
+             m_samplers_count
+                = std::min(MAX_SAMPLER_DESCRIPTORS, m_physical_device_props.properties.limits.maxDescriptorSetSamplers);
 
-            m_maxSampledImagesDescriptorCount
-                = std::min(MAX_SAMPLED_IMAGE_DESCRIPTORS, m_physicalDeviceVulkan12Properties.maxDescriptorSetUpdateAfterBindSampledImages);
+             m_sampled_images_count
+                = std::min(MAX_SAMPLED_IMAGE_DESCRIPTORS, m_physical_device_props12.maxDescriptorSetUpdateAfterBindSampledImages);
 
-            m_maxStorageImagesDescriptorCount
-                = std::min(MAX_STORAGE_IMAGE_DESCRIPTORS, m_physicalDeviceVulkan12Properties.maxDescriptorSetUpdateAfterBindStorageImages);
+             m_storage_images_count
+                = std::min(MAX_STORAGE_IMAGE_DESCRIPTORS, m_physical_device_props12.maxDescriptorSetUpdateAfterBindStorageImages);
 
-            m_maxStorageBuffersDescriptorCount
-                = std::min(MAX_STORAGE_BUFFER_DESCRIPTORS, m_physicalDeviceProperties.properties.limits.maxDescriptorSetStorageBuffers);
+             m_storage_buffers_count
+                = std::min(MAX_STORAGE_BUFFER_DESCRIPTORS, m_physical_device_props.properties.limits.maxDescriptorSetStorageBuffers);
 
-            m_maxUniformBuffersDescriptorCount
-                = std::min(MAX_STORAGE_BUFFER_DESCRIPTORS, m_physicalDeviceProperties.properties.limits.maxDescriptorSetUniformBuffers);
-            */
+             m_uniform_buffers_count
+                = std::min(MAX_STORAGE_BUFFER_DESCRIPTORS, m_physical_device_props.properties.limits.maxDescriptorSetUniformBuffers);
+            
             RHI_INFO("Vulkan Driver {0} created successfully", m_physical_device_props.properties.deviceName);
             RHI_INFO("ReBar/UMA: {0}, VRAM Size: {1}, VK_EXT_MEMORY_BUDGET: {2}", m_rebar, m_memory_size, m_has_memory_budget);
-            /*
-            spdlog::debug("\nBindless resource limits:"
-                          "\n\t Samplers: {0}"
-                          "\n\t Sampled images:  {1}"
-                          "\n\t Storage images:  {2}"
-                          "\n\t Storage buffers: {3}"
-                          "\n\t Uniform buffers: {4}",
-                m_maxSamplersDescriptorCount, m_maxSampledImagesDescriptorCount, m_maxStorageImagesDescriptorCount,
-                m_maxStorageBuffersDescriptorCount, m_maxUniformBuffersDescriptorCount);
-                */
+            
+            RHI_INFO("\nBindless resource limits:"
+                          "\n\t Samplers: {}"
+                          "\n\t Sampled images:  {}"
+                          "\n\t Storage images:  {}"
+                          "\n\t Storage buffers: {}"
+                          "\n\t Uniform buffers: {}",
+                          m_samplers_count, m_sampled_images_count, m_storage_images_count, m_storage_buffers_count, m_uniform_buffers_count);
+
         }
     }
     
@@ -561,7 +564,7 @@ namespace core::rhi
         return false;
     }
 
-    bool VulkanDevice::supports_instance_extensions(std::initializer_list<const char*> extension_names, const char** unsupported_ext) const {
+    bool VulkanDevice::supports_instance_extensions(std::vector<const char*> extension_names, const char** unsupported_ext) const {
         for (auto& ext : extension_names) {
             if (!supports_instance_extension(ext)) {
                 if (unsupported_ext) {
@@ -583,7 +586,7 @@ namespace core::rhi
         return false;
     }
     
-    bool VulkanDevice::supports_device_extensions(std::initializer_list<const char*> extension_names, const char** unsupported_ext) const 
+    bool VulkanDevice::supports_device_extensions(std::vector<const char*> extension_names, const char** unsupported_ext) const 
     {
         for (auto& ext : extension_names) {
             if (!supports_device_extension(ext)) {

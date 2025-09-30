@@ -43,9 +43,9 @@ namespace core::rhi
 
         bool supports_validation_layer(const char* layer_name) const;
         bool supports_instance_extension(const char* extension_name) const;
-        bool supports_instance_extensions(std::initializer_list<const char*> extension_names, const char** unsupported_ext = nullptr) const;
+        bool supports_instance_extensions(std::vector<const char*> extension_names, const char** unsupported_ext = nullptr) const;
         bool supports_device_extension(const char* extension_name) const;
-        bool supports_device_extensions(std::initializer_list<const char*> extension_names, const char** unsupported_ext = nullptr) const;
+        bool supports_device_extensions(std::vector<const char*> extension_names, const char** unsupported_ext = nullptr) const;
 
     private:
         bool m_debug;
@@ -53,10 +53,15 @@ namespace core::rhi
         bool m_using_dxgi;
         bool m_single_queue;
         bool m_has_memory_budget;
-        bool m_has_colorspace_support;
+        bool m_has_colorspace_ext;
 
         u64 m_memory_size;
-
+        u64 m_samplers_count;
+        u64 m_sampled_images_count;
+        u64 m_storage_images_count;
+        u64 m_storage_buffers_count;
+        u64 m_uniform_buffers_count;
+        
         VkInstance m_instance;
         
         VkDevice m_device;
@@ -67,8 +72,13 @@ namespace core::rhi
 
         VkDebugUtilsMessengerEXT m_debug_messenger;
 
-        std::vector<const char*> m_enabled_instance_exts;
         std::vector<const char*> m_enabled_layers;
+        std::vector<const char*> m_enabled_instance_exts = {
+            VK_KHR_EXTERNAL_MEMORY_CAPABILITIES_EXTENSION_NAME,
+            VK_KHR_EXTERNAL_FENCE_CAPABILITIES_EXTENSION_NAME,
+            VK_KHR_EXTERNAL_SEMAPHORE_CAPABILITIES_EXTENSION_NAME
+        };
+        
         std::vector<const char*> m_enabled_device_exts = {
             VK_KHR_SWAPCHAIN_EXTENSION_NAME,
             VK_EXT_MEMORY_BUDGET_EXTENSION_NAME,
@@ -78,12 +88,16 @@ namespace core::rhi
             VK_KHR_EXTERNAL_MEMORY_WIN32_EXTENSION_NAME,
             VK_KHR_EXTERNAL_FENCE_WIN32_EXTENSION_NAME,
             VK_KHR_EXTERNAL_SEMAPHORE_WIN32_EXTENSION_NAME,
+#elif defined(SDL_PLATFORM_LINUX)
+            VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME,
+            VK_KHR_EXTERNAL_FENCE_FD_EXTENSION_NAME,
+            VK_KHR_EXTERNAL_SEMAPHORE_FD_EXTENSION_NAME,
 #endif
         };
 
-        std::vector<VkExtensionProperties> m_available_instance_exts;
-        std::vector<VkExtensionProperties> m_available_device_exts;
         std::vector<VkLayerProperties> m_available_layers;
+        std::vector<VkExtensionProperties> m_available_device_exts;
+        std::vector<VkExtensionProperties> m_available_instance_exts;
         
         VkPhysicalDeviceFeatures2 m_physical_device_features;
         VkPhysicalDeviceVulkan11Features m_physical_device_features11;
