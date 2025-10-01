@@ -97,9 +97,10 @@ namespace core::rhi
                     throw std::runtime_error(std::format("System doesn't support the required Vulkan instance extension {}", error));
                 }
                 
-                if(m_has_colorspace_ext = supports_instance_extension(VK_EXT_SWAPCHAIN_COLOR_SPACE_EXTENSION_NAME); m_has_colorspace_ext){
+                m_has_colorspace_ext = supports_instance_extension(VK_EXT_SWAPCHAIN_COLOR_SPACE_EXTENSION_NAME);
+                if(m_has_colorspace_ext){
                     m_enabled_instance_exts.push_back(VK_EXT_SWAPCHAIN_COLOR_SPACE_EXTENSION_NAME);
-                }
+                } 
             }
 
             if (m_debug) {
@@ -227,18 +228,21 @@ namespace core::rhi
                 m_physical_device_features12 = {};
                 m_physical_device_syncronization2_features_khr = {};
                 m_physical_device_dynamic_rendering_features_khr = {};
+                m_physical_device_pageable_memory_ext = {};
 
                 m_physical_device_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
                 m_physical_device_features11.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES;
                 m_physical_device_features12.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
                 m_physical_device_syncronization2_features_khr.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SYNCHRONIZATION_2_FEATURES;
                 m_physical_device_dynamic_rendering_features_khr.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES;
+                m_physical_device_pageable_memory_ext.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PAGEABLE_DEVICE_LOCAL_MEMORY_FEATURES_EXT;
 
                 m_physical_device_features.pNext = &m_physical_device_features11;
                 m_physical_device_features11.pNext = &m_physical_device_features12;
                 m_physical_device_features12.pNext = &m_physical_device_syncronization2_features_khr;
                 m_physical_device_syncronization2_features_khr.pNext   = &m_physical_device_dynamic_rendering_features_khr;
-                m_physical_device_dynamic_rendering_features_khr.pNext = nullptr;
+                m_physical_device_dynamic_rendering_features_khr.pNext = &m_physical_device_pageable_memory_ext;
+                m_physical_device_pageable_memory_ext.pNext = nullptr;
 
                 m_physical_device_props = {};
                 m_physical_device_props11 = {};
@@ -261,6 +265,9 @@ namespace core::rhi
                 if (const char* error; !supports_device_extensions(m_enabled_device_exts)) {
                     return false;
                 }
+                
+                m_has_pageable_memory = supports_device_extensions({ VK_EXT_MEMORY_PRIORITY_EXTENSION_NAME, VK_EXT_PAGEABLE_DEVICE_LOCAL_MEMORY_EXTENSION_NAME }) && 
+                    m_physical_device_pageable_memory_ext.pageableDeviceLocalMemory;
 
                 // If you don't have these, sorry but the device is unsupported
                 if (find_gfx_queue(physicalDevice) == VK_QUEUE_FAMILY_IGNORED 
@@ -351,6 +358,11 @@ namespace core::rhi
 
             if (m_has_memory_budget) {
                 m_enabled_device_exts.push_back(VK_EXT_MEMORY_BUDGET_EXTENSION_NAME);
+            }
+
+            if (m_has_pageable_memory) {
+                m_enabled_device_exts.push_back(VK_EXT_MEMORY_PRIORITY_EXTENSION_NAME);
+                m_enabled_device_exts.push_back(VK_EXT_PAGEABLE_DEVICE_LOCAL_MEMORY_EXTENSION_NAME);
             }
 
             m_queue_indices[(u32)CommandQueue::kGeneral] = find_gfx_queue(m_physical_device);

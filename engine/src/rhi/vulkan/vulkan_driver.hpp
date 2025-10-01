@@ -123,6 +123,7 @@ namespace core::rhi
         bool m_using_dxgi;
         bool m_has_memory_budget;
         bool m_has_colorspace_ext;
+        bool m_has_pageable_memory;
 
         u64 m_memory_size;
         u64 m_samplers_count;
@@ -177,13 +178,14 @@ namespace core::rhi
         VkPhysicalDeviceVulkan12Features m_physical_device_features12;
         VkPhysicalDeviceSynchronization2FeaturesKHR m_physical_device_syncronization2_features_khr;
         VkPhysicalDeviceDynamicRenderingFeaturesKHR m_physical_device_dynamic_rendering_features_khr;
+        VkPhysicalDevicePageableDeviceLocalMemoryFeaturesEXT m_physical_device_pageable_memory_ext;
 
         VkPhysicalDeviceProperties2 m_physical_device_props;
         VkPhysicalDeviceVulkan11Properties m_physical_device_props11;
         VkPhysicalDeviceVulkan12Properties m_physical_device_props12;
         VkPhysicalDeviceDescriptorIndexingProperties m_descriptor_indexing_props;
         VkPhysicalDeviceDepthStencilResolveProperties m_depth_stencil_resolve_props;
-
+        
         #if defined(SDL_PLATFORM_WIN32)
         Microsoft::WRL::ComPtr<ID3D12Device1> m_d3d_device;
         Microsoft::WRL::ComPtr<IDXGIFactory4> m_dxgi_factory;
