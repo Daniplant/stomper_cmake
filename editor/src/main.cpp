@@ -6,11 +6,6 @@
 
 using namespace core::rhi;
 
-class TestClass
-{
-
-};
-
 int main() {
     spdlog::set_level(spdlog::level::debug);
 
@@ -20,16 +15,16 @@ int main() {
     device = create_vulkan_device(NullDeviceLUID, true);
 #elif defined(SDL_PLATFORM_APPLE)
     device = create_metal_device(true);
-    //device = create_vulkan_device(NullDeviceLUID, true);
+#endif
+
     auto cmd = device->begin_commandbuffer(CommandQueue::kGeneral);
     device->end_commandbuffer(cmd);
     auto fence = device->submit_commandbuffer_fenced(cmd);
-    
-    while(!fence->is_signaled()){
-        spdlog::info("Waiting for completition...");
-    }
+
+    fence->wait();
+    device->destroy_fence(fence);
+
     spdlog::info("Completed!");
-    
-#endif
+
     delete device;
 }

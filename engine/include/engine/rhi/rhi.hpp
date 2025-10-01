@@ -143,10 +143,12 @@ namespace core::rhi
         virtual void destroy_swapchain(SDL_Window* window) = 0;
 
         virtual CommandBuffer* begin_commandbuffer(CommandQueue queue) = 0;
-        virtual void end_commandbuffer(CommandBuffer* cmd) = 0;
+        virtual bool end_commandbuffer(CommandBuffer* cmd) = 0;
         
         virtual bool submit_commandbuffer(CommandBuffer* cmds) = 0;
         virtual Fence* submit_commandbuffer_fenced(CommandBuffer* cmds) = 0;
+
+        virtual void destroy_fence(Fence* fence) = 0;
 
         virtual std::string get_name() const = 0;
     };

@@ -35,7 +35,6 @@
 #include <unordered_set>
 
 #include <SDL3/SDL_vulkan.h>
-#include <vulkan/vk_enum_string_helper.h>
 
 namespace core::rhi
 {
@@ -442,12 +441,123 @@ namespace core::rhi
     
     VulkanDevice::~VulkanDevice() 
     { 
+        vkDeviceWaitIdle(m_device);
+
+        for (auto fence : m_fence_pool) {
+            vkDestroyFence(m_device, fence->handle, nullptr);
+        }
+
+        for (auto& [thread_id, pool_array] : m_cmdpool_pool) {
+            for (auto& pool : pool_array) {
+                vkDestroyCommandPool(m_device, pool.handle, nullptr);
+            }
+        }
+
         vkDestroyDevice(m_device, nullptr);
 
         if (m_debug) {
            vkDestroyDebugUtilsMessengerEXT(m_instance, m_debug_messenger, nullptr);
         }
         vkDestroyInstance(m_instance, nullptr);
+    }
+
+    CommandBuffer* VulkanDevice::begin_commandbuffer(CommandQueue queue) 
+    {
+        m_cmd_acquire_mtx.lock();
+        VulkanCommandBuffer* cmd = fetch_cmdbuffer(std::this_thread::get_id(), queue);
+        m_cmd_acquire_mtx.unlock();
+
+        if (!cmd) {
+            return nullptr;
+        }
+
+        if (auto result = vkResetCommandBuffer(cmd->handle, VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT); result != VK_SUCCESS) {
+            RHI_ERROR("Failed to reset Vulkan commandbuffer: {}", string_VkResult(result));
+            return nullptr;
+        }
+
+        VkCommandBufferBeginInfo cmd_begin_info { 
+            .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+            .pNext = nullptr,
+            .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+            .pInheritanceInfo = nullptr,
+        };
+
+        if (auto result = vkBeginCommandBuffer(cmd->handle, &cmd_begin_info); result != VK_SUCCESS) {
+            RHI_ERROR("Failed to begin Vulkan commandbuffer recording: {}", string_VkResult(result));
+            return nullptr;
+        }
+        return cmd;
+    }
+
+    bool VulkanDevice::end_commandbuffer(CommandBuffer* cmd) 
+    { 
+        auto vulkan_cmd = static_cast<VulkanCommandBuffer*>(cmd);
+        if (auto result = vkEndCommandBuffer(vulkan_cmd->handle); result != VK_SUCCESS) {
+            RHI_ERROR("Failed to end Vulkan command buffer recording: {}", string_VkResult(result));
+            return false;
+        }
+        return true;
+    }
+
+    bool VulkanDevice::submit_commandbuffer(CommandBuffer* cmd) 
+    { 
+        auto vulkan_cmd = static_cast<VulkanCommandBuffer*>(cmd);
+        
+        vulkan_cmd->fence = fetch_fence();
+        if (!vulkan_cmd) {
+            return false;
+        }
+        vulkan_cmd->autorelease_fence = true;
+        vulkan_cmd->fence->completed.store(false);
+
+        VkCommandBufferSubmitInfo cmd_info {
+            .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO,
+            .pNext = nullptr,
+            .commandBuffer = vulkan_cmd->handle,
+            .deviceMask = 0
+        };
+        
+        VkSubmitInfo2KHR submit_info {
+            .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2_KHR,
+            .pNext = nullptr,
+            .commandBufferInfoCount = 1,
+            .pCommandBufferInfos = &cmd_info
+        };
+
+        if (auto result = vkQueueSubmit2KHR(m_queues[(u32)vulkan_cmd->pool->queue_type], 1, &submit_info, vulkan_cmd->fence->handle);
+            result != VK_SUCCESS) {
+            RHI_ERROR("Failed to submit Vulkan commandbuffer: {}", string_VkResult(result));
+            return false;
+        }
+
+        return true;
+    }
+
+    Fence* VulkanDevice::submit_commandbuffer_fenced(CommandBuffer* cmd) 
+    {
+        auto vulkan_cmd = static_cast<VulkanCommandBuffer*>(cmd);
+        vulkan_cmd->autorelease_fence = false;
+
+        if (!submit_commandbuffer(cmd)) {
+            return nullptr;
+        }
+        return vulkan_cmd->fence;
+    }
+
+    void VulkanDevice::destroy_fence(Fence* fence) 
+    { 
+        auto vulkan_fence = static_cast<VulkanFence*>(fence);
+        vkResetFences(m_device, 1, &vulkan_fence->handle);
+
+        m_fence_pool_mtx.lock();
+        m_fence_pool.push_back(vulkan_fence);
+        m_fence_pool_mtx.unlock();
+    }
+
+    std::string VulkanDevice::get_name() const 
+    { 
+        return m_physical_device_props.properties.deviceName;
     }
 
     VkResult VulkanDevice::query_instance_exts() 
@@ -554,6 +664,103 @@ namespace core::rhi
                 return false;
             }
         }
+        return true;
+    }
+
+    VulkanFence* VulkanDevice::fetch_fence() 
+    {
+        std::lock_guard lock(m_fence_pool_mtx);
+
+        if (m_fence_pool.empty()) {
+            auto fence = std::make_unique<VulkanFence>();
+            fence->device = m_device;
+
+            VkFenceCreateInfo createInfo { 
+                .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO, 
+                .pNext = nullptr, 
+                .flags = 0 
+            };
+            if (auto result = vkCreateFence(m_device, &createInfo, nullptr, &fence->handle); result != VK_SUCCESS) {
+                RHI_ERROR("Failed to create Vulkan fence: {}", string_VkResult(result));
+                return nullptr;
+            }
+            m_fence_pool.push_back(fence.release());
+        }
+
+        VulkanFence* fence = m_fence_pool.back();
+        m_fence_pool.pop_back();
+        return fence;
+    }
+
+    VulkanCommandBuffer* VulkanDevice::fetch_cmdbuffer(std::thread::id thread_id, CommandQueue queue) 
+    { 
+        VulkanCommandPool* cmd_pool = fetch_cmdpool(thread_id, queue);
+        if (!cmd_pool) {
+            return nullptr;
+        }
+
+        if (cmd_pool->free_cmdbuffers.empty()) {
+            if (!allocate_cmdbuffer(cmd_pool)) {
+                return nullptr;
+            }
+        }
+
+        VulkanCommandBuffer* cmd = cmd_pool->free_cmdbuffers.back();
+        cmd_pool->free_cmdbuffers.pop_back();
+        return cmd;
+    }
+
+    VulkanCommandPool* VulkanDevice::fetch_cmdpool(std::thread::id thread_id, CommandQueue queue) 
+    { 
+        if (!m_cmdpool_pool.contains(thread_id)) {
+
+            m_cmdpool_pool[thread_id] = {};
+
+            for (auto& cmdpool : m_cmdpool_pool[thread_id]) {
+
+                cmdpool.queue_type = queue;
+                cmdpool.thread_id  = thread_id;
+
+                VkCommandPoolCreateInfo cmdpool_info { 
+                    .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+                    .pNext = nullptr,
+                    .flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
+                    .queueFamilyIndex = m_queue_indices[(u32)queue] 
+                };
+
+                if (auto result = vkCreateCommandPool(m_device, &cmdpool_info, nullptr, &cmdpool.handle); result != VK_SUCCESS) {
+                    RHI_ERROR("Failed to create Vulkan command pool: {}", string_VkResult(result));
+                    return nullptr;
+                }
+
+                if (!allocate_cmdbuffer(&m_cmdpool_pool[thread_id][(u32)queue])) {
+                    return nullptr;
+                }
+            }
+        }
+
+        return &m_cmdpool_pool.at(thread_id)[(u32)queue];
+    }
+
+    bool VulkanDevice::allocate_cmdbuffer(VulkanCommandPool* cmdpool) 
+    {
+        auto cmdbuffer = std::make_unique<VulkanCommandBuffer>();
+        
+        VkCommandBufferAllocateInfo alloc_info = {
+            .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+            .pNext = nullptr,
+            .commandPool = cmdpool->handle,
+            .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+            .commandBufferCount = 1
+        };
+
+        if (auto result = vkAllocateCommandBuffers(m_device, &alloc_info, &cmdbuffer->handle); result != VK_SUCCESS) {
+            RHI_ERROR("Failed to allocate Vulkan commandbuffer: {}", string_VkResult(result));
+            return false;
+        }
+
+        cmdbuffer->pool = cmdpool;
+        cmdbuffer->pool->free_cmdbuffers.emplace_back(cmdbuffer.release());
         return true;
     }
 }
