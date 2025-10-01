@@ -7,21 +7,21 @@ using namespace core::math;
 
 TEST_CASE("matrix4f constructors", "[Matrix4]") {
     SECTION("Default constructor initializes to zero") {
-        matrix4f m;
+        Matrix4f m;
         for (int i = 0; i < 16; i++) {
             REQUIRE(m.data[i] == Catch::Approx(0.0f));
         }
     }
 
     SECTION("Single-value constructor fills all entries") {
-        matrix4f m(5.0f);
+        Matrix4f m(5.0f);
         for (int i = 0; i < 16; i++) {
             REQUIRE(m.data[i] == Catch::Approx(5.0f));
         }
     }
 
     SECTION("Full constructor initializes correctly") {
-        matrix4f m(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16);
+        Matrix4f m(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16);
 
         REQUIRE(m.m00 == Catch::Approx(1));
         REQUIRE(m.m01 == Catch::Approx(2));
@@ -43,8 +43,8 @@ TEST_CASE("matrix4f constructors", "[Matrix4]") {
 }
 
 TEST_CASE("matrix4f negation and equality", "[Matrix4]") {
-    matrix4f a(1.0f);
-    matrix4f b(1.0f);
+    Matrix4f a(1.0f);
+    Matrix4f b(1.0f);
 
     SECTION("Negation operator") {
         auto neg = -a;
@@ -55,13 +55,13 @@ TEST_CASE("matrix4f negation and equality", "[Matrix4]") {
 
     SECTION("Equality operator") {
         REQUIRE(a == b);
-        matrix4f c(2.0f);
+        Matrix4f c(2.0f);
         REQUIRE_FALSE(a == c);
     }
 }
 
 TEST_CASE("matrix4f arithmetic with scalars", "[Matrix4]") {
-    matrix4f m(2.0f);
+    Matrix4f m(2.0f);
 
     SECTION("Addition with scalar") {
         auto r = m + 3.0f;
@@ -93,8 +93,8 @@ TEST_CASE("matrix4f arithmetic with scalars", "[Matrix4]") {
 }
 
 TEST_CASE("matrix4f arithmetic with other matrices", "[Matrix4]") {
-    matrix4f a(1.0f);
-    matrix4f b(2.0f);
+    Matrix4f a(1.0f);
+    Matrix4f b(2.0f);
 
     SECTION("Addition with matrix") {
         auto r = a + b;
@@ -111,7 +111,7 @@ TEST_CASE("matrix4f arithmetic with other matrices", "[Matrix4]") {
     }
 
     SECTION("Multiplication with matrix (identity test)") {
-        matrix4f I(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
+        Matrix4f I(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
 
         auto r = I * b;
         REQUIRE(r.m00 == Catch::Approx(b.m00));
