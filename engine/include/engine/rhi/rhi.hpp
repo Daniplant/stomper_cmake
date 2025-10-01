@@ -7,9 +7,7 @@
 
 namespace core::rhi
 {
-    CORE_MAKE_HANDLE(Buffer)
-    CORE_MAKE_HANDLE(Texture)
-
+    
     /**
      * Specifies the swapchain present mode
      */
@@ -107,8 +105,10 @@ namespace core::rhi
     class Fence
     {
         CORE_MAKE_INTERFACE_PROTECTED(Fence)
+    
     public:
-        
+        virtual bool wait() = 0;
+        virtual bool is_signaled() = 0;
     };
 
     class Renderpass {
@@ -145,9 +145,9 @@ namespace core::rhi
         virtual CommandBuffer* begin_commandbuffer(CommandQueue queue) = 0;
         virtual void end_commandbuffer(CommandBuffer* cmd) = 0;
         
-        virtual bool submit_commandbuffers(std::span<CommandBuffer*> cmds) = 0;
-        bool submit_commandbuffer(CommandBuffer* cmd) { return submit_commandbuffers({&cmd, 1}); }
-        
+        virtual bool submit_commandbuffer(CommandBuffer* cmds) = 0;
+        virtual Fence* submit_commandbuffer_fenced(CommandBuffer* cmds) = 0;
+
         virtual std::string get_name() const = 0;
     };
 
