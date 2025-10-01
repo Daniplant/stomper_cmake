@@ -19,9 +19,17 @@ int main() {
 #if defined(SDL_PLATFORM_WINDOWS) || defined(SDL_PLATFORM_LINUX)
     device = create_vulkan_device(NullDeviceLUID, true);
 #elif defined(SDL_PLATFORM_APPLE)
-    //device = create_metal_device(true);
-    device = create_vulkan_device(NullDeviceLUID, true);
-    spdlog::info(device->get_name());
+    device = create_metal_device(true);
+    //device = create_vulkan_device(NullDeviceLUID, true);
+    auto cmd = device->begin_commandbuffer(CommandQueue::kGeneral);
+    device->end_commandbuffer(cmd);
+    auto fence = device->submit_commandbuffer_fenced(cmd);
+    
+    while(!fence->is_signaled()){
+        spdlog::info("Waiting for completition...");
+    }
+    spdlog::info("Completed!");
+    
 #endif
     delete device;
 }
