@@ -1,7 +1,7 @@
 project(Engine LANGUAGES C CXX VERSION 1.0.0)
 
-file(GLOB ENGINE_SOURCES 
-	${PROJECT_SOURCE_DIR}/src/rhi/*.h 
+file(GLOB ENGINE_SOURCES
+	${PROJECT_SOURCE_DIR}/src/rhi/*.h
 	${PROJECT_SOURCE_DIR}/src/rhi/*.c
 	${PROJECT_SOURCE_DIR}/src/rhi/*.hpp 
 	${PROJECT_SOURCE_DIR}/src/rhi/*.cpp
@@ -10,7 +10,9 @@ file(GLOB ENGINE_SOURCES
 	${PROJECT_SOURCE_DIR}/src/rhi/vulkan/*.hpp
 	${PROJECT_SOURCE_DIR}/src/rhi/vulkan/*.cpp)
 
-file(GLOB_RECURSE ENGINE_HEADERS ${PROJECT_SOURCE_DIR}/include/*.h ${PROJECT_SOURCE_DIR}/include/*.hpp)
+file(GLOB_RECURSE ENGINE_HEADERS
+    ${PROJECT_SOURCE_DIR}/include/*.h
+    ${PROJECT_SOURCE_DIR}/include/*.hpp)
 
 if(APPLE)
 	file(GLOB APPLE_ENGINE_SOURCES ${PROJECT_SOURCE_DIR}/src/rhi/metal/*.hpp ${PROJECT_SOURCE_DIR}/src/rhi/metal/*.mm)
