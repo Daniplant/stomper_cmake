@@ -33,8 +33,9 @@ namespace core::rhi
         CommandBuffer* begin_commandbuffer(CommandQueue queue) override { return nullptr; }
         void end_commandbuffer(CommandBuffer* cmd) override {}
         
-        bool submit_commandbuffers(std::span<CommandBuffer*> cmds) override { return false;}
-
+        bool submit_commandbuffer(CommandBuffer* cmds) override { return false; }
+        Fence* submit_commandbuffer_fenced(CommandBuffer* cmds) override { return nullptr; }
+        
         std::string get_name() const override { return m_physical_device_props.properties.deviceName;}
 
     private:
