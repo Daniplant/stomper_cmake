@@ -2,6 +2,7 @@
 
 #import <Metal/Metal.h>
 #import <Foundation/Foundation.h>
+#import <QuartzCore/CoreAnimation.h>
 
 #include <SDL3/SDL_metal.h>
 #include <SDL3/SDL_stdinc.h>
@@ -13,21 +14,65 @@
 
 namespace core::rhi
 {
+    struct MetalFence;
+
+    struct MetalTexture : TextureBase {
+        id<MTLTexture> handle;
+    };
+
+    struct MetalSwapchain {
+        SDL_Window* window;
+        SDL_MetalView view;
+        CAMetalLayer* layer;
+        id<CAMetalDrawable> drawable;
+        
+        MetalTexture texture;
+        
+        u64 frame_count;
+        std::array<MetalFence*, MAX_SWAPCHAIN_FRAMES> frame_fences;
+    };
+
     struct MetalFence final : public Fence
     {
-    public:
         MetalFence() = default;
         ~MetalFence() override = default;
         
+        bool wait() override
+        {
+            while(!completed.load()) {
+                // spiiiiiiiiin
+            }
+            return true;
+        }
+        
+        bool is_signaled() override
+        {
+            return completed.load();
+        }
+        
+        std::atomic_bool completed;
+    };
+
+    struct MetalEvent {
+    
     };
 
     struct MetalCommandBuffer final : public CommandBuffer
     {
-    public:
         MetalCommandBuffer() = default;
         ~MetalCommandBuffer() override = default;
+        
+        id<MTLCommandBuffer> handle;
+        
+        std::vector<MetalSwapchain*> bound_swapchains;
+        
+        std::vector<MetalEvent*> wait_events;
+        std::vector<MetalEvent*> signal_events;
+        
+        MetalFence* fence;
+        bool autorelease_fence;
     };
-
+        
     class MetalDevice final : public Device
     {
     public:
@@ -63,7 +108,7 @@ namespace core::rhi
                 if(m_debug) {
                     m_rendertargets_heap.label = @"Render targets heap";
                 }
-                
+            
                 heap_desc.type = MTLHeapTypePlacement;
                 
                 m_textures_heap = [m_device newHeapWithDescriptor:heap_desc];
@@ -83,6 +128,9 @@ namespace core::rhi
                 }
                 
                 m_name = std::string([[m_device name] UTF8String]);
+                
+                RHI_INFO("Metal 3 RHI created successfully");
+                RHI_INFO("Using GPU device {}", get_name());
             }
         }
         
@@ -108,22 +156,98 @@ namespace core::rhi
 
         CommandBuffer* begin_commandbuffer(CommandQueue queue) override
         {
-            throw std::runtime_error("Not yet implemented");
+            // There's only one queue, no need for this parameter
+            std::ignore = queue;
+            
+            @autoreleasepool
+            {
+                MetalCommandBuffer* cmd = fetch_commandbuffer();
+                if(!cmd){
+                    RHI_ERROR("Failed to acquire command buffer");
+                    return nullptr;
+                }
+                
+                cmd->handle = [m_queue commandBuffer];
+                cmd->autorelease_fence = true;
+                
+                return cmd;
+            }
         }
         
+        // Function does nothing in Metal 3
         void end_commandbuffer(CommandBuffer* cmd) override
         {
-            throw std::runtime_error("Not yet implemented");
+            std::ignore = cmd;
         }
             
-        bool submit_commandbuffers(std::span<CommandBuffer*> cmds) override
+        bool submit_commandbuffer(CommandBuffer* cmd) override
         {
-            throw std::runtime_error("Not yet implemented");
+            @autoreleasepool
+            {
+                auto metal_cmd = static_cast<MetalCommandBuffer*>(cmd);
+                    
+                metal_cmd->fence = fetch_fence();
+                if(!metal_cmd->fence){
+                    RHI_ERROR("Failed to acquire fence");
+                    return false;
+                }
+                    
+                [metal_cmd->handle addCompletedHandler:^(id<MTLCommandBuffer>) {
+                    metal_cmd->fence->completed.store(true);
+                }];
+                    
+                [metal_cmd->handle commit];
+                metal_cmd->handle = nil;
+                    
+                m_cmdbuffers_submit_mtx.lock();
+                m_submitted_cmdbuffers.push_back(metal_cmd);
+                m_cmdbuffers_submit_mtx.unlock();
+            }
+        
+            // eventually clean up resources
+            return true;
+        }
+        
+        Fence* submit_commandbuffer_fenced(CommandBuffer* cmd) override
+        {
+            if(!submit_commandbuffer(cmd)){
+                return nullptr;
+            }
+            
+            auto metal_cmd = static_cast<MetalCommandBuffer*>(cmd);
+            metal_cmd->autorelease_fence = false;
+            return metal_cmd->fence;
         }
         
         std::string get_name() const override
         {
             return m_name;
+        }
+        
+    private:
+        MetalCommandBuffer* fetch_commandbuffer()
+        {
+            std::lock_guard lock(m_cmdbuffers_acquire_mtx);
+            
+            if(m_cmdbuffers_pool.empty()) {
+                m_cmdbuffers_pool.emplace_back(new MetalCommandBuffer());
+            }
+            
+            MetalCommandBuffer* cmd = m_cmdbuffers_pool.back();
+            m_cmdbuffers_pool.pop_back();
+            return cmd;
+        }
+        
+        MetalFence* fetch_fence() {
+            std::lock_guard lock(m_fence_pool_mtx);
+            
+            if(m_fences_pool.empty()) {
+                m_fences_pool.emplace_back(new MetalFence());
+            }
+            
+            MetalFence* fence = m_fences_pool.back();
+            m_fences_pool.pop_back();
+            return fence;
         }
         
     private:
@@ -138,12 +262,12 @@ namespace core::rhi
         id<MTLHeap> m_rendertargets_heap;
         
         std::mutex m_fence_pool_mtx;
-        std::mutex m_commandbuffer_submit_mtx;
-        std::mutex m_commandbuffer_acquire_mtx;
+        std::mutex m_cmdbuffers_submit_mtx;
+        std::mutex m_cmdbuffers_acquire_mtx;
         
-        std::vector<MetalFence*> m_fence_pool;
-        std::vector<MetalCommandBuffer*> m_commandbuffers_pool;
-        std::vector<MetalCommandBuffer*> m_submitted_commandbuffers;
+        std::vector<MetalFence*> m_fences_pool;
+        std::vector<MetalCommandBuffer*> m_cmdbuffers_pool;
+        std::vector<MetalCommandBuffer*> m_submitted_cmdbuffers;
     };
     
     std::unique_ptr<Device> make_metal3_device(bool debug)
