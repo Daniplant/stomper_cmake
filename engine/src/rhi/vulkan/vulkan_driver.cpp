@@ -262,7 +262,7 @@ namespace core::rhi
                 vkGetPhysicalDeviceFeatures2(physicalDevice, &m_physical_device_features);
                 vkGetPhysicalDeviceProperties2(physicalDevice, &m_physical_device_props);
 
-                if (const char* error; !supports_device_extensions(m_enabled_device_exts)) {
+                if (!supports_device_extensions(m_enabled_device_exts)) {
                     return false;
                 }
                 
@@ -345,7 +345,7 @@ namespace core::rhi
 
                 u64 score = m_memory_size + (m_rebar ? 1000 : 0);
                 score += m_physical_device_props.properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU ? 1000 : 0;
-                score += find_dedicated_cmp_queue(physical_device) != VK_QUEUE_FAMILY_IGNORED ? 500 : 0;
+                score += find_dedicated_cmp_queue(physical_device) != VK_QUEUE_FAMILY_IGNORED ? 1000 : 0;
                 score += find_dedicated_trs_queue(physical_device) != VK_QUEUE_FAMILY_IGNORED ? 1000 : 0;
                 physical_device_ranker.emplace(score, physical_device);
             }
