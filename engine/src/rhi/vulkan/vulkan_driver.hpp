@@ -33,6 +33,7 @@ namespace core::rhi
                 RHI_ERROR("Failed to wait for Vulkan fence: {}", string_VkResult(result));
                 return false;
             }
+            return true;
         }
 
         bool is_signaled() override
