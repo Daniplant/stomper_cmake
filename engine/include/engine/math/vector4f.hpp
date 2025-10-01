@@ -14,7 +14,7 @@ namespace core::math
     {
         constexpr Vector4f();
 
-        constexpr Vector4f(float v);
+        explicit constexpr Vector4f(float v);
 
         constexpr Vector4f(float x, float y, float z, float w);
 

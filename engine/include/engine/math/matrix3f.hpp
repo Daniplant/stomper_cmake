@@ -12,33 +12,33 @@
 
 namespace core::math
 {
-    struct matrix3f
+    struct Matrix3f
     {
-        constexpr matrix3f();
+        constexpr Matrix3f();
 
-        constexpr matrix3f(Vector3f row0, Vector3f row1, Vector3f row2);
+        constexpr Matrix3f(Vector3f row0, Vector3f row1, Vector3f row2);
 
-        constexpr matrix3f(float m00, float m01, float m02, float m10, float m11, float m12, float m20, float m21, float m22);
+        constexpr Matrix3f(float m00, float m01, float m02, float m10, float m11, float m12, float m20, float m21, float m22);
 
-        constexpr matrix3f(float v);
+        explicit constexpr Matrix3f(float v);
 
-        constexpr CORE_FORCE_INLINE matrix3f operator-() const;
+        constexpr CORE_FORCE_INLINE Matrix3f operator-() const;
 
-        constexpr CORE_FORCE_INLINE matrix3f operator==(const matrix3f& rhs) const;
+        constexpr CORE_FORCE_INLINE bool operator==(const Matrix3f& rhs) const;
 
-        constexpr CORE_FORCE_INLINE matrix3f operator+(const matrix3f& rhs) const;
+        constexpr CORE_FORCE_INLINE Matrix3f operator+(const Matrix3f& rhs) const;
 
-        constexpr CORE_FORCE_INLINE matrix3f operator-(const matrix3f& rhs) const;
+        constexpr CORE_FORCE_INLINE Matrix3f operator-(const Matrix3f& rhs) const;
 
-        constexpr CORE_FORCE_INLINE matrix3f operator*(const matrix3f& rhs) const;
+        constexpr CORE_FORCE_INLINE Matrix3f operator*(const Matrix3f& rhs) const;
 
-        constexpr CORE_FORCE_INLINE matrix3f operator+(float rhs) const;
+        constexpr CORE_FORCE_INLINE Matrix3f operator+(float rhs) const;
 
-        constexpr CORE_FORCE_INLINE matrix3f operator-(float rhs) const;
+        constexpr CORE_FORCE_INLINE Matrix3f operator-(float rhs) const;
 
-        constexpr CORE_FORCE_INLINE matrix3f operator*(float rhs) const;
+        constexpr CORE_FORCE_INLINE Matrix3f operator*(float rhs) const;
 
-        constexpr CORE_FORCE_INLINE matrix3f operator/(float rhs) const;
+        constexpr CORE_FORCE_INLINE Matrix3f operator/(float rhs) const;
 
         union {
             struct
@@ -52,7 +52,7 @@ namespace core::math
             float data[9];
         };
 
-        static const matrix3f Zero, Identity;
+        static const Matrix3f Zero, Identity;
     };
 #include "inl/matrix3f.inl"
 }
