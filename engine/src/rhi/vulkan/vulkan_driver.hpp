@@ -132,6 +132,8 @@ namespace core::rhi
         u64 m_storage_buffers_count;
         u64 m_uniform_buffers_count;
         
+        std::atomic_uint64_t m_submit_counter;
+
         VkInstance m_instance;
         
         VkDevice m_device;

@@ -8,6 +8,7 @@
 namespace core::rhi {
     inline auto rhi_logger = spdlog::default_logger()->clone("RHI");
 
+    constexpr u8 GC_CLEANUP_SUBMIT_THRESHOLD = 3;
     constexpr u8 MAX_SWAPCHAIN_FRAMES = 3;
     constexpr u32 MAX_SAMPLER_DESCRIPTORS = 256;
     constexpr u32 MAX_SAMPLED_IMAGE_DESCRIPTORS  = 125000;

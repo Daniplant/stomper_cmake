@@ -63,6 +63,8 @@ namespace core::rhi
             
     VulkanDevice::VulkanDevice(DeviceLUID luid, bool debug) : m_debug(debug)
     {
+        m_submit_counter.store(0);
+
         // Instance creation
         {
             VkDebugUtilsMessengerCreateInfoEXT debug_create_info {
@@ -541,6 +543,10 @@ namespace core::rhi
             result != VK_SUCCESS) {
             RHI_ERROR("Failed to submit Vulkan commandbuffer: {}", string_VkResult(result));
             return false;
+        }
+
+        if ((m_submit_counter.fetch_add(1, std::memory_order_relaxed) % GC_CLEANUP_SUBMIT_THRESHOLD) == 0) {
+            //cleanup
         }
 
         return true;
