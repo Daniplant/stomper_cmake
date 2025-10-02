@@ -12,38 +12,38 @@
 
 namespace core::math
 {
-    struct matrix4f
+    struct Matrix4f
     {
-        constexpr matrix4f();
+        constexpr Matrix4f();
 
-        constexpr matrix4f(float v);
+        explicit constexpr Matrix4f(float v);
 
-        constexpr matrix4f(Vector4f row0, Vector4f row1, Vector4f row2, Vector4f row3);
+        constexpr Matrix4f(Vector4f row0, Vector4f row1, Vector4f row2, Vector4f row3);
 
-        constexpr matrix4f(float m00, float m01, float m02, float m03, float m10, float m11, float m12, float m13, float m20, float m21,
+        constexpr Matrix4f(float m00, float m01, float m02, float m03, float m10, float m11, float m12, float m13, float m20, float m21,
             float m22, float m23, float m30, float m31, float m32, float m33);
 
-        constexpr CORE_FORCE_INLINE matrix4f operator-() const;
+        constexpr CORE_FORCE_INLINE Matrix4f operator-() const;
 
-        constexpr CORE_FORCE_INLINE bool operator==(const matrix4f& rhs) const;
+        constexpr CORE_FORCE_INLINE bool operator==(const Matrix4f& rhs) const;
 
-        constexpr CORE_FORCE_INLINE matrix4f operator+(const matrix4f& rhs) const;
+        constexpr CORE_FORCE_INLINE Matrix4f operator+(const Matrix4f& rhs) const;
 
-        constexpr CORE_FORCE_INLINE matrix4f operator-(const matrix4f& rhs) const;
+        constexpr CORE_FORCE_INLINE Matrix4f operator-(const Matrix4f& rhs) const;
 
-        constexpr CORE_FORCE_INLINE matrix4f operator*(const matrix4f& rhs) const;
+        constexpr CORE_FORCE_INLINE Matrix4f operator*(const Matrix4f& rhs) const;
 
-        constexpr CORE_FORCE_INLINE matrix4f operator+(float rhs) const;
+        constexpr CORE_FORCE_INLINE Matrix4f operator+(float rhs) const;
 
-        constexpr CORE_FORCE_INLINE matrix4f operator-(float rhs) const;
+        constexpr CORE_FORCE_INLINE Matrix4f operator-(float rhs) const;
 
-        constexpr CORE_FORCE_INLINE matrix4f operator*(float rhs) const;
+        constexpr CORE_FORCE_INLINE Matrix4f operator*(float rhs) const;
 
-        constexpr CORE_FORCE_INLINE matrix4f operator/(float rhs) const;
+        constexpr CORE_FORCE_INLINE Matrix4f operator/(float rhs) const;
 
-        static CORE_FORCE_INLINE matrix4f perspective_fov(float fov, float aspect, float z_near, float z_far);
+        static CORE_FORCE_INLINE Matrix4f perspective_fov(float fov, float aspect, float z_near, float z_far);
 
-        static CORE_FORCE_INLINE matrix4f perspective_offcenter(
+        static CORE_FORCE_INLINE Matrix4f perspective_offcenter(
             float left, float right, float bottom, float top, float z_near, float z_far);
 
         union {
@@ -59,7 +59,7 @@ namespace core::math
             float data[16];
         };
 
-        static const matrix4f Zero, Identity;
+        static const Matrix4f Zero, Identity;
     };
 
 #include "inl/matrix4f.inl"
