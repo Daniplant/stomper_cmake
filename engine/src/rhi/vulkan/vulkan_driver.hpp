@@ -3,7 +3,7 @@
 #include "engine/common.hpp"
 #include "engine/rhi/rhi.hpp"
 
-#include "volk.h"
+#include <volk.h>
 #include <vulkan/vk_enum_string_helper.h>
 
 #include <array>

@@ -1,15 +1,3 @@
-#define VOLK_IMPLEMENTATION
-
-#if defined(SDL_PLATFORM_WIN32)
-    #define VK_USE_PLATFORM_WIN32_KHR
-#elif defined(SDL_PLATFORM_LINUX)
-    #define VK_USE_PLATFORM_XCB_KHR
-    #define VK_USE_PLATFORM_XLIB_KHR
-    #define VK_USE_PLATFORM_WAYLAND_KHR
-#elif defined(SDL_PLATFORM_APPLE)
-    #define VK_USE_PLATFORM_METAL_EXT
-#endif
-
 #include "vulkan_driver.hpp"
 
 #include <map>
@@ -19,14 +7,6 @@
 
 #if defined(SDL_PLATFORM_WIN32)
 using namespace Microsoft::WRL;
-
-extern "C" {
-    __declspec(dllexport) extern const UINT D3D12SDKVersion = 715;
-}
-
-extern "C" {
-    __declspec(dllexport) extern const char* D3D12SDKPath = ".\\D3D12\\";
-}
 
 static std::string GetHResultString(HRESULT hr) {
     _com_error error(hr);
@@ -766,7 +746,7 @@ namespace core::rhi
 
     bool VulkanDevice::create_dxgi_swapchain(SDL_Window* window) 
     { 
-        
+        return false;
     }
 
 #endif
@@ -1011,4 +991,5 @@ namespace core::rhi
     }
 
 #pragma endregion
+
 }

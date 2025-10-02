@@ -14,15 +14,29 @@ CPMAddPackage(
         URL_HASH SHA256=b74274c32c8be5dba70b7006c1d41b7d3e5ff0dff8390c8b6390c1189424e094)
 
 CPMAddPackage(
+        NAME volk
+        GIT_REPOSITORY https://github.com/zeux/volk
+        GIT_TAG vulkan-sdk-1.4.328)
+
+if(WIN32)
+    set(VOLK_STATIC_DEFINES VK_USE_PLATFORM_WIN32_KHR)
+elseif(LINUX)
+    set(VOLK_STATIC_DEFINES VK_USE_PLATFORM_WAYLAND_KHR)
+elseif(APPLE)
+    set(VOLK_STATIC_DEFINES VK_USE_PLATFORM_METAL_EXT)
+endif()
+
+CPMAddPackage(
         NAME Vulkan-Utility-Libraries
-        GIT_REPOSITORY https://github.com/KhronosGroup/Vulkan-Utility-Libraries
-        GIT_TAG v1.4.327)
+        VERSION 1.4.328
+        URL https://github.com/KhronosGroup/Vulkan-Utility-Libraries/archive/refs/tags/v1.4.328.zip
+        URL_HASH SHA256=139f42eb06dc98e1853de37f01035142ea8221247a13bae2d197275bf21156d1)
 
 CPMAddPackage(
         NAME Vulkan-Headers
-        VERSION 1.4.327
-        URL https://github.com/KhronosGroup/Vulkan-Headers/archive/refs/tags/v1.4.327.zip
-        URL_HASH SHA256=908a4fd186f00fffa513c0235df9c1c7c8a7283521d04fdb002bcde0b344d77d)
+        VERSION 1.4.328
+        URL https://github.com/KhronosGroup/Vulkan-Headers/archive/refs/tags/v1.4.328.zip
+        URL_HASH SHA256=75fe4d82d41381229ea7dea2892e3344f500fd5de62e8994f79f4979f432a261)
 
 CPMAddPackage(
         NAME cereal

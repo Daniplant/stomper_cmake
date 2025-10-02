@@ -29,6 +29,7 @@ source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${ENGINE_HEADERS} ${ENGINE_S
 add_library(Engine STATIC ${ENGINE_SOURCES} ${ENGINE_HEADERS})
 target_include_directories(Engine PRIVATE ${PROJECT_SOURCE_DIR}/src PUBLIC ${PROJECT_SOURCE_DIR}/include)
 target_link_libraries(Engine PUBLIC
+		volk::volk
 		cereal::cereal
 		spdlog::spdlog
 		SDL3::SDL3-static
