@@ -27,4 +27,6 @@ int main() {
     spdlog::info("Completed!");
 
     delete device;
+
+    std::cin.get();
 }

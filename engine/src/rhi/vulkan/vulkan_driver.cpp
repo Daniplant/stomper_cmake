@@ -10,31 +10,29 @@
     #define VK_USE_PLATFORM_METAL_EXT
 #endif
 
-#define ENGINE_NAME "Stomper"
-
-#ifndef GAME_VERSION_MAJOR
-    #define GAME_VERSION_MAJOR 1
-#endif
-
-#ifndef GAME_VERSION_MINOR
-    #define GAME_VERSION_MINOR 0
-#endif
-
-#ifndef GAME_VERSION_PATCH
-    #define GAME_VERSION_PATCH 0
-#endif
-
-#ifndef GAME_NAME
-    #define GAME_NAME "Unknown stomper game"
-#endif
-
 #include "vulkan_driver.hpp"
 
 #include <map>
 #include <format>
 #include <unordered_set>
-
 #include <SDL3/SDL_vulkan.h>
+
+#if defined(SDL_PLATFORM_WIN32)
+using namespace Microsoft::WRL;
+
+extern "C" {
+    __declspec(dllexport) extern const UINT D3D12SDKVersion = 715;
+}
+
+extern "C" {
+    __declspec(dllexport) extern const char* D3D12SDKPath = ".\\D3D12\\";
+}
+
+static std::string GetHResultString(HRESULT hr) {
+    _com_error error(hr);
+    return error.ErrorMessage();
+}
+#endif
 
 namespace core::rhi
 {
@@ -120,9 +118,9 @@ namespace core::rhi
             VkApplicationInfo app_info {
                 .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
                 .pNext = nullptr,
-                .pApplicationName = GAME_NAME,
-                .applicationVersion = VK_MAKE_VERSION(GAME_VERSION_MAJOR, GAME_VERSION_MINOR, GAME_VERSION_PATCH),
-                .pEngineName = ENGINE_NAME,
+                .pApplicationName = "",
+                .applicationVersion = VK_MAKE_VERSION(1, 0, 0),
+                .pEngineName = "Stomper",
                 .engineVersion = VK_MAKE_VERSION(1, 0, 0),
                 .apiVersion = VK_API_VERSION_1_2
             };
@@ -355,6 +353,7 @@ namespace core::rhi
                 throw std::runtime_error("Failed to find any suitable Vulkan physical devices");
             }
 
+            //m_physical_device = std::prev((physical_device_ranker.end()))->second;
             m_physical_device = physical_device_ranker.begin()->second;
             check_device_properties(m_physical_device);
 
@@ -448,6 +447,12 @@ namespace core::rhi
              m_uniform_buffers_count
                 = std::min(MAX_STORAGE_BUFFER_DESCRIPTORS, m_physical_device_props.properties.limits.maxDescriptorSetUniformBuffers);
             
+#if defined(SDL_PLATFORM_WIN32)
+             if (!setup_dxgi()) {
+                 throw std::runtime_error("Failed to setup dxgi");
+             }
+             setup_dsr();
+#endif
             RHI_INFO("Vulkan RHI created successfully");
             RHI_INFO("Using GPU device {}", get_name());
         }
@@ -577,6 +582,162 @@ namespace core::rhi
     { 
         return m_physical_device_props.properties.deviceName;
     }
+
+#if defined(SDL_PLATFORM_WIN32)
+
+    bool VulkanDevice::setup_dxgi() 
+    { 
+        HRESULT hr;
+        if (m_debug) {
+            ComPtr<ID3D12Debug> d3d1_dbg;
+            hr = D3D12GetDebugInterface(IID_PPV_ARGS(d3d1_dbg.ReleaseAndGetAddressOf()));
+            if (SUCCEEDED(hr)) {
+                d3d1_dbg->EnableDebugLayer();
+                RHI_INFO("Debug mode enabled, expect some performance loss");
+
+                ComPtr<ID3D12DeviceRemovedExtendedDataSettings1> d3d12_dred;
+                hr = D3D12GetDebugInterface(IID_PPV_ARGS(d3d12_dred.ReleaseAndGetAddressOf()));
+                if (SUCCEEDED(hr)) {
+                    d3d12_dred->SetAutoBreadcrumbsEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
+                    d3d12_dred->SetPageFaultEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
+                    d3d12_dred->SetBreadcrumbContextEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
+                }
+                else {
+                    RHI_ERROR("Failed to enable Device Removed Extended Data (DRED): {}", GetHResultString(hr));
+                }
+
+                // https://github.com/turanszkij/WickedEngine/blob/39201b7f32ccfb52c19dd450823f5108b7181b71/WickedEngine/wiGraphicsDevice_DX12.cpp#L2280
+                ComPtr<IDXGIInfoQueue> dxgi_info_queue;
+                hr = DXGIGetDebugInterface1(0, IID_PPV_ARGS(dxgi_info_queue.ReleaseAndGetAddressOf()));
+                if (SUCCEEDED(hr)) {
+                    DXGI_INFO_QUEUE_MESSAGE_ID hide[] { 80 };
+                    DXGI_INFO_QUEUE_FILTER filter {
+                            .DenyList {
+                                .NumIDs  = static_cast<UINT>(std::size(hide)),
+                                .pIDList = hide,
+                        },
+                    };
+                    dxgi_info_queue->AddStorageFilterEntries(DXGI_DEBUG_DXGI, &filter);
+                    dxgi_info_queue->SetBreakOnSeverity(DXGI_DEBUG_ALL, DXGI_INFO_QUEUE_MESSAGE_SEVERITY_ERROR, true);
+                    dxgi_info_queue->SetBreakOnSeverity(DXGI_DEBUG_ALL, DXGI_INFO_QUEUE_MESSAGE_SEVERITY_CORRUPTION, true);
+                }
+                else {
+                    m_debug = false;
+                    RHI_ERROR("Failed to enable DXGI debug info queue interface: {}", GetHResultString(hr));
+                }
+            }
+            else {
+                RHI_ERROR("Failed to enable D3D12 debug layer: {}", GetHResultString(hr));
+            }
+        }
+
+        hr = CreateDXGIFactory2(m_debug ? DXGI_CREATE_FACTORY_DEBUG : 0u, IID_PPV_ARGS(&m_dxgi_factory));
+        if (FAILED(hr)) {
+            RHI_INFO("Failed to create DXGI adapter factory: {}", GetHResultString(hr));
+            return false;
+        }
+
+        {
+            BOOL value;
+            hr = m_dxgi_factory->CheckFeatureSupport(DXGI_FEATURE_PRESENT_ALLOW_TEARING, &value, sizeof(BOOL));
+            if (FAILED(hr)) {
+                m_has_tearing = false;
+                RHI_ERROR("Failed to check tearing support: {}", GetHResultString(hr));
+            }
+            else {
+                m_has_tearing = true;
+            }
+        }
+
+        D3D_FEATURE_LEVEL feature_levels[] = {
+            D3D_FEATURE_LEVEL_12_2,
+            D3D_FEATURE_LEVEL_12_1,
+            D3D_FEATURE_LEVEL_12_0,
+            D3D_FEATURE_LEVEL_11_1,
+            D3D_FEATURE_LEVEL_11_0
+        };
+
+        hr = m_dxgi_factory->EnumAdapterByLuid(*reinterpret_cast<const LUID*>(m_physical_device_props11.deviceLUID), IID_PPV_ARGS(m_dxgi_adapter.ReleaseAndGetAddressOf()));
+        if (FAILED(hr)) {
+            RHI_ERROR("Failed to create DXGI adapter factory from LUID: {}", GetHResultString(hr));
+            return false;
+        }
+
+        for (auto& feature_level : feature_levels) {
+            hr = D3D12CreateDevice(m_dxgi_adapter.Get(), feature_level, IID_PPV_ARGS(m_d3d12_device.ReleaseAndGetAddressOf()));
+            if (SUCCEEDED(hr)) {
+                break;
+            }
+        }
+        if (!m_d3d12_device) {
+            RHI_ERROR("Failed to create D3D12 device");
+            return false;
+        }
+
+        if (m_debug) {
+            ComPtr<ID3D12InfoQueue> d3d12_info_queue;
+            if (SUCCEEDED(m_d3d12_device.As(&d3d12_info_queue))) {
+                d3d12_info_queue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, TRUE);
+                d3d12_info_queue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, TRUE);
+                std::vector<D3D12_MESSAGE_SEVERITY> enabledSeverities;
+                std::vector<D3D12_MESSAGE_ID> disabledMessages;
+
+                enabledSeverities.push_back(D3D12_MESSAGE_SEVERITY_CORRUPTION);
+                enabledSeverities.push_back(D3D12_MESSAGE_SEVERITY_ERROR);
+                enabledSeverities.push_back(D3D12_MESSAGE_SEVERITY_WARNING);
+                enabledSeverities.push_back(D3D12_MESSAGE_SEVERITY_MESSAGE);
+
+                disabledMessages.push_back(D3D12_MESSAGE_ID_DRAW_EMPTY_SCISSOR_RECTANGLE);
+                disabledMessages.push_back(D3D12_MESSAGE_ID_SETPRIVATEDATA_CHANGINGPARAMS);
+                disabledMessages.push_back(D3D12_MESSAGE_ID_HEAP_ADDRESS_RANGE_INTERSECTS_MULTIPLE_BUFFERS);
+
+                D3D12_INFO_QUEUE_FILTER filter { 
+                    .AllowList {
+                        .NumSeverities = static_cast<UINT>(enabledSeverities.size()),
+                        .pSeverityList = enabledSeverities.data(),
+                    },
+                    .DenyList {
+                        .NumIDs  = static_cast<UINT>(disabledMessages.size()),
+                        .pIDList = disabledMessages.data(),
+                    } 
+                };
+
+                d3d12_info_queue->AddStorageFilterEntries(&filter);
+            }
+            else {
+                RHI_ERROR("Failed to create ID3D12InfoQueue: {}", GetHResultString(hr));
+            }
+        }
+
+        return true;
+    }
+
+    bool VulkanDevice::setup_dsr() 
+    { 
+        HRESULT hr;
+        
+        hr = D3D12GetInterface(CLSID_D3D12DSRDeviceFactory, IID_PPV_ARGS(m_dsr_factory.GetAddressOf()));
+        if (FAILED(hr)) {
+            RHI_ERROR("Failed to Get D3D12DSRDeviceFactory factory: {}", GetHResultString(hr));
+            return false;
+        }
+
+        hr = m_dsr_factory->CreateDSRDevice(m_d3d12_device.Get(),0,IID_PPV_ARGS(m_dsr_device.GetAddressOf()));
+        if (FAILED(hr)) {
+            RHI_ERROR("Failed to create DSRDevice: {}", GetHResultString(hr));
+            return false;
+        }
+
+        const u32 dsrVariantCount = m_dsr_device->GetNumSuperResVariants();
+        for (u32 currentVariantIndex = 0; currentVariantIndex < dsrVariantCount; currentVariantIndex++)
+        {
+            DSR_SUPERRES_VARIANT_DESC variantDesc;
+            m_dsr_device->GetSuperResVariantDesc(currentVariantIndex, &variantDesc);
+            RHI_INFO("Found DSR variant: {}", variantDesc.VariantName);
+        }
+    }
+
+#endif
 
     VkResult VulkanDevice::query_instance_exts() 
     {

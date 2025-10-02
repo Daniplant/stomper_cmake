@@ -12,9 +12,12 @@
 #if defined(SDL_PLATFORM_WIN32)
 #define NOMINMAX
 #include <wrl.h>
+#include <comdef.h>
 #include <windows.h>
 #include <dxgi1_6.h>
+#include <dxgidebug.h>
 #include <directx/d3d12.h>
+#include <directx/directsr.h>
 #include <vulkan/vulkan_win32.h>
 #endif
 
@@ -101,6 +104,11 @@ namespace core::rhi
         std::string get_name() const override;
 
     private:
+#if defined(SDL_PLATFORM_WIN32)
+        bool setup_dxgi();
+        bool setup_dsr();
+#endif
+
         VkResult query_instance_exts();
         VkResult query_device_exts(VkPhysicalDevice device);
         bool query_validation_layers();
@@ -121,6 +129,7 @@ namespace core::rhi
         bool m_debug;
         bool m_rebar;
         bool m_using_dxgi;
+        bool m_has_tearing;
         bool m_has_memory_budget;
         bool m_has_colorspace_ext;
         bool m_has_pageable_memory;
@@ -189,9 +198,12 @@ namespace core::rhi
         VkPhysicalDeviceDepthStencilResolveProperties m_depth_stencil_resolve_props;
         
         #if defined(SDL_PLATFORM_WIN32)
-        Microsoft::WRL::ComPtr<ID3D12Device1> m_d3d_device;
-        Microsoft::WRL::ComPtr<IDXGIFactory4> m_dxgi_factory;
+        Microsoft::WRL::ComPtr<ID3D12Device1> m_d3d12_device;
+        Microsoft::WRL::ComPtr<IDXGIFactory5> m_dxgi_factory;
         Microsoft::WRL::ComPtr<IDXGIAdapter4> m_dxgi_adapter; 
-        #endif
+
+        Microsoft::WRL::ComPtr<IDSRDevice> m_dsr_device;
+        Microsoft::WRL::ComPtr<ID3D12DSRDeviceFactory> m_dsr_factory;
+    #endif
     };
 }

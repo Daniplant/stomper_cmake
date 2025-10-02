@@ -34,7 +34,7 @@ target_link_libraries(Engine PUBLIC
 		SDL3::SDL3-static
 		Vulkan::Headers
 		Vulkan::UtilityHeaders
-		$<$<PLATFORM_ID:Windows>:Microsoft::DirectX-Guids;Microsoft::DirectX-Headers;Microsoft::DirectX12-Agility;dxgi;dxguid>)
+		$<$<PLATFORM_ID:Windows>:Microsoft::DirectX12-Agility>)
 
 if(APPLE)
     target_link_libraries(Engine PUBLIC "-framework Foundation" "-framework Metal" "-framework QuartzCore")
