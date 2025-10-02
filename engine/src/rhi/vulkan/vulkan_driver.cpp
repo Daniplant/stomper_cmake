@@ -58,7 +58,34 @@ namespace core::rhi
         };
         return VK_FALSE;
     }
-            
+    
+#pragma region VulkanFence
+
+    bool VulkanFence::wait() {
+       if (auto result = vkWaitForFences(device, 1, &handle, true, SDL_MAX_UINT64); result != VK_SUCCESS) {
+           RHI_ERROR("Failed to wait for Vulkan fence: {}", string_VkResult(result));
+           return false;
+       }
+       return true;
+    }
+
+    bool VulkanFence::is_signaled() {
+       auto result = vkGetFenceStatus(device, handle);
+       if (result == VK_SUCCESS) {
+           return true;
+       }
+       else if (result == VK_NOT_READY) {
+           return false;
+       }
+       else {
+           RHI_ERROR("Failed to query Vulkan fence status: {}", string_VkResult(result));
+           return false;
+       }
+    }
+
+#pragma endregion
+
+#pragma region VulkanDevice
     VulkanDevice::VulkanDevice(DeviceLUID luid, bool debug) : m_debug(debug)
     {
         m_submit_counter.store(0);
@@ -275,7 +302,7 @@ namespace core::rhi
                     || !m_physical_device_features.features.multiDrawIndirect 
                     || !m_physical_device_features11.multiview
                     || !m_physical_device_features12.descriptorIndexing 
-                    || !m_physical_device_features12.drawIndirectCount
+                    //|| !m_physical_device_features12.drawIndirectCount
                     || !m_physical_device_features12.bufferDeviceAddress
                     || !m_physical_device_features12.descriptorBindingPartiallyBound
                     || !m_physical_device_features12.descriptorBindingUpdateUnusedWhilePending
@@ -451,7 +478,7 @@ namespace core::rhi
              if (!setup_dxgi()) {
                  throw std::runtime_error("Failed to setup dxgi");
              }
-             setup_dsr();
+             m_has_dsr = setup_dsr();
 #endif
             RHI_INFO("Vulkan RHI created successfully");
             RHI_INFO("Using GPU device {}", get_name());
@@ -568,7 +595,7 @@ namespace core::rhi
         return vulkan_cmd->fence;
     }
 
-    void VulkanDevice::destroy_fence(Fence* fence) 
+    void VulkanDevice::release_fence(Fence* fence) 
     { 
         auto vulkan_fence = static_cast<VulkanFence*>(fence);
         vkResetFences(m_device, 1, &vulkan_fence->handle);
@@ -737,6 +764,11 @@ namespace core::rhi
         }
     }
 
+    bool VulkanDevice::create_dxgi_swapchain(SDL_Window* window) 
+    { 
+        
+    }
+
 #endif
 
     VkResult VulkanDevice::query_instance_exts() 
@@ -871,6 +903,41 @@ namespace core::rhi
         return fence;
     }
 
+    VulkanSemaphore* VulkanDevice::fetch_semaphore() 
+    { 
+        std::lock_guard lock(m_semaphore_pool_mtx);
+
+        if (m_semaphore_pool.empty()) {
+
+            auto semaphore = std::make_unique<VulkanSemaphore>();
+            semaphore->signal_value = 0;
+            semaphore->current_value = 0;
+
+            VkSemaphoreTypeCreateInfoKHR type_info { 
+                .sType = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO,
+                .pNext = nullptr,
+                .semaphoreType = VK_SEMAPHORE_TYPE_TIMELINE_KHR,
+                .initialValue = 0 
+            };
+
+            VkSemaphoreCreateInfo create_info {
+                .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+                .pNext = nullptr
+            };
+
+            if (auto result = vkCreateSemaphore(m_device, &create_info, nullptr, &semaphore->handle); result != VK_SUCCESS) {
+                RHI_ERROR("Failed to create Vulkan semaphore: {}", string_VkResult(result));
+                return nullptr;
+            }
+
+            m_semaphore_pool.push_back(semaphore.release());
+        }
+    
+        VulkanSemaphore* semaphore = m_semaphore_pool.back();
+        m_semaphore_pool.pop_back();
+        return semaphore;
+    }
+
     VulkanCommandBuffer* VulkanDevice::fetch_cmdbuffer(std::thread::id thread_id, CommandQueue queue) 
     { 
         VulkanCommandPool* cmd_pool = fetch_cmdpool(thread_id, queue);
@@ -942,4 +1009,6 @@ namespace core::rhi
         cmdbuffer->pool->free_cmdbuffers.emplace_back(cmdbuffer.release());
         return true;
     }
+
+#pragma endregion
 }

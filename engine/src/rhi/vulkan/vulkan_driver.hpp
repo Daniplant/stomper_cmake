@@ -24,35 +24,21 @@
 namespace core::rhi
 {
     struct VulkanCommandPool;
+    
+    struct VulkanSemaphore
+    {
+        u64 signal_value;
+        u64 current_value;
+        VkSemaphore handle;
+    };
 
     struct VulkanFence : public Fence
     {
         VulkanFence() = default;
         ~VulkanFence() override = default;
 
-        bool wait() override 
-        { 
-            if (auto result = vkWaitForFences(device, 1, &handle, true, SDL_MAX_UINT64); result != VK_SUCCESS) {
-                RHI_ERROR("Failed to wait for Vulkan fence: {}", string_VkResult(result));
-                return false;
-            }
-            return true;
-        }
-
-        bool is_signaled() override
-        { 
-            auto result = vkGetFenceStatus(device, handle);
-            if (result == VK_SUCCESS) {
-                return true;
-            }
-            else if (result == VK_NOT_READY) {
-                return false;
-            }
-            else {
-                RHI_ERROR("Failed to query Vulkan fence status: {}", string_VkResult(result));
-                return false;
-            }
-        }
+        bool wait() override;
+        bool is_signaled() override;
 
         VkFence handle;
         VkDevice device;
@@ -82,6 +68,18 @@ namespace core::rhi
         std::vector<VulkanCommandBuffer*> free_cmdbuffers;
     };
 
+    struct VulkanSwapchain
+    {
+#if defined(SDL_PLATFORM_WIN32)
+        DXGI_COLOR_SPACE_TYPE colorspace;
+        Microsoft::WRL::ComPtr<IDXGISwapChain4> dxgi_swapchain;
+        std::array<VulkanSemaphore*, MAX_SWAPCHAIN_FRAMES> imported_semaphores;
+#endif
+        u64 frame_count;
+        bool needs_recreate;
+        SDL_Window* window;
+    };
+
     class VulkanDevice final : public Device
     {
     public:
@@ -99,7 +97,7 @@ namespace core::rhi
         bool submit_commandbuffer(CommandBuffer* cmds) override;
         Fence* submit_commandbuffer_fenced(CommandBuffer* cmds) override;
         
-        void destroy_fence(Fence* fence) override;
+        void release_fence(Fence* fence) override;
 
         std::string get_name() const override;
 
@@ -107,6 +105,8 @@ namespace core::rhi
 #if defined(SDL_PLATFORM_WIN32)
         bool setup_dxgi();
         bool setup_dsr();
+
+        bool create_dxgi_swapchain(SDL_Window* window);
 #endif
 
         VkResult query_instance_exts();
@@ -120,6 +120,7 @@ namespace core::rhi
         bool supports_device_extensions(std::vector<const char*> extension_names, const char** unsupported_ext = nullptr) const;
 
         VulkanFence* fetch_fence();
+        VulkanSemaphore* fetch_semaphore();
         VulkanCommandBuffer* fetch_cmdbuffer(std::thread::id thread, CommandQueue queue);
 
         VulkanCommandPool* fetch_cmdpool(std::thread::id thread, CommandQueue queue);
@@ -129,6 +130,8 @@ namespace core::rhi
         bool m_debug;
         bool m_rebar;
         bool m_using_dxgi;
+        
+        bool m_has_dsr;
         bool m_has_tearing;
         bool m_has_memory_budget;
         bool m_has_colorspace_ext;
@@ -150,6 +153,7 @@ namespace core::rhi
         VkDebugUtilsMessengerEXT m_debug_messenger;
 
         std::mutex m_fence_pool_mtx;
+        std::mutex m_semaphore_pool_mtx;
         std::mutex m_cmd_submit_mtx;
         std::mutex m_cmd_acquire_mtx;
         
@@ -157,6 +161,8 @@ namespace core::rhi
         std::array<u32, (u32)CommandQueue::kMax> m_queue_indices;
         
         std::vector<VulkanFence*> m_fence_pool;
+
+        std::vector<VulkanSemaphore*> m_semaphore_pool;
 
         std::vector<VulkanCommandBuffer*> m_submitted_cmdbuffers;
         std::unordered_map<std::thread::id, std::array<VulkanCommandPool, (u32)CommandQueue::kMax>> m_cmdpool_pool;
