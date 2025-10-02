@@ -4,28 +4,28 @@
 #error "Do not include matrix4f.inl, include engine/math/matrix4f.hpp instead"
 #else
 
-constexpr matrix4f::matrix4f() {
+constexpr Matrix4f::Matrix4f() {
     rows[0] = Vector4f();
     rows[1] = Vector4f();
     rows[2] = Vector4f();
     rows[3] = Vector4f();
 }
 
-constexpr matrix4f::matrix4f(float v) {
+constexpr Matrix4f::Matrix4f(float v) {
     rows[0] = Vector4f(v);
     rows[1] = Vector4f(v);
     rows[2] = Vector4f(v);
     rows[3] = Vector4f(v);
 }
 
-constexpr matrix4f::matrix4f(Vector4f row0, Vector4f row1, Vector4f row2, Vector4f row3) {
+constexpr Matrix4f::Matrix4f(Vector4f row0, Vector4f row1, Vector4f row2, Vector4f row3) {
     rows[0] = row0;
     rows[1] = row1;
     rows[2] = row2;
     rows[3] = row3;
 }
 
-constexpr matrix4f::matrix4f(float m00, float m01, float m02, float m03, float m10, float m11, float m12, float m13, float m20, float m21,
+constexpr Matrix4f::Matrix4f(float m00, float m01, float m02, float m03, float m10, float m11, float m12, float m13, float m20, float m21,
     float m22, float m23, float m30, float m31, float m32, float m33)
     : m00(m00)
     , m01(m01)
@@ -44,21 +44,21 @@ constexpr matrix4f::matrix4f(float m00, float m01, float m02, float m03, float m
     , m32(m32)
     , m33(m33) { }
 
-constexpr matrix4f matrix4f::operator-() const { return { -rows[0], -rows[1], -rows[2], -rows[3] }; }
+constexpr Matrix4f Matrix4f::operator-() const { return { -rows[0], -rows[1], -rows[2], -rows[3] }; }
 
-constexpr bool matrix4f::operator==(const matrix4f& rhs) const {
+constexpr bool Matrix4f::operator==(const Matrix4f& rhs) const {
     return rows[0] == rhs.rows[0] && rows[1] == rhs.rows[1] && rows[2] == rhs.rows[2] && rows[3] == rhs.rows[3];
 }
 
-constexpr matrix4f matrix4f::operator+(const matrix4f& rhs) const {
+constexpr Matrix4f Matrix4f::operator+(const Matrix4f& rhs) const {
     return { rows[0] + rhs.rows[0], rows[1] + rhs.rows[1], rows[2] + rhs.rows[2], rows[3] + rhs.rows[3] };
 }
 
-constexpr matrix4f matrix4f::operator-(const matrix4f& rhs) const {
+constexpr Matrix4f Matrix4f::operator-(const Matrix4f& rhs) const {
     return { rows[0] - rhs.rows[0], rows[1] - rhs.rows[1], rows[2] - rhs.rows[2], rows[3] - rhs.rows[3] };
 }
 
-constexpr matrix4f matrix4f::operator*(const matrix4f& rhs) const {
+constexpr Matrix4f Matrix4f::operator*(const Matrix4f& rhs) const {
     return { data[0] * rhs.data[0] + data[1] * rhs.data[4] + data[2] * rhs.data[8] + data[3] * rhs.data[12],
         data[0] * rhs.data[1] + data[1] * rhs.data[5] + data[2] * rhs.data[9] + data[3] * rhs.data[13],
         data[0] * rhs.data[2] + data[1] * rhs.data[6] + data[2] * rhs.data[10] + data[3] * rhs.data[14],
@@ -77,15 +77,19 @@ constexpr matrix4f matrix4f::operator*(const matrix4f& rhs) const {
         data[12] * rhs.data[3] + data[13] * rhs.data[7] + data[14] * rhs.data[11] + data[15] * rhs.data[15] };
 }
 
-constexpr matrix4f matrix4f::operator+(float rhs) const { return { rows[0] + rhs, rows[1] + rhs, rows[2] + rhs, rows[3] + rhs }; }
+constexpr Matrix4f Matrix4f::operator+(float rhs) const {
+    return { rows[0] + Vector4f(rhs), rows[1] + Vector4f(rhs), rows[2] + Vector4f(rhs), rows[3] + Vector4f(rhs) };
+}
 
-constexpr matrix4f matrix4f::operator-(float rhs) const { return { rows[0] - rhs, rows[1] - rhs, rows[2] - rhs, rows[3] - rhs }; }
+constexpr Matrix4f Matrix4f::operator-(float rhs) const {
+    return { rows[0] - Vector4f(rhs), rows[1] - Vector4f(rhs), rows[2] - Vector4f(rhs), rows[3] - Vector4f(rhs) };
+}
 
-constexpr matrix4f matrix4f::operator*(float rhs) const { return { rows[0] * rhs, rows[1] * rhs, rows[2] * rhs, rows[3] * rhs }; }
+constexpr Matrix4f Matrix4f::operator*(float rhs) const { return { rows[0] * rhs, rows[1] * rhs, rows[2] * rhs, rows[3] * rhs }; }
 
-constexpr matrix4f matrix4f::operator/(float rhs) const { return { rows[0] / rhs, rows[1] / rhs, rows[2] / rhs, rows[3] / rhs }; }
+constexpr Matrix4f Matrix4f::operator/(float rhs) const { return { rows[0] / rhs, rows[1] / rhs, rows[2] / rhs, rows[3] / rhs }; }
 
-matrix4f matrix4f::perspective_fov(float fov, float aspect, float z_near, float z_far) {
+Matrix4f Matrix4f::perspective_fov(float fov, float aspect, float z_near, float z_far) {
     float sin_fov = std::sin(0.5f * fov);
     float cos_fov = std::cos(0.5f * fov);
     float h       = cos_fov / sin_fov;
@@ -95,7 +99,7 @@ matrix4f matrix4f::perspective_fov(float fov, float aspect, float z_near, float 
     return { w, 0.f, 0.f, 0.f, 0.0f, h, 0.f, 0.f, 0.0f, 0.f, f_range, 0.0f, 0.0f, 0.0f, -f_range * z_near, 0.0f };
 }
 
-matrix4f matrix4f::perspective_offcenter(float left, float right, float bottom, float top, float z_near, float z_far) {
+Matrix4f Matrix4f::perspective_offcenter(float left, float right, float bottom, float top, float z_near, float z_far) {
     float inv_width  = 1.0f / (right - left);
     float inv_height = 1.0f / (top - bottom);
     float f_range    = z_far / (z_far - z_near);
@@ -104,7 +108,7 @@ matrix4f matrix4f::perspective_offcenter(float left, float right, float bottom, 
         -(top + bottom) * inv_height, f_range, 1.0f, 0.0f, 0.0f, -f_range * z_near, 0.0f };
 }
 
-inline constexpr matrix4f matrix4f::Zero(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
-inline constexpr matrix4f matrix4f::Identity(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
+inline constexpr Matrix4f Matrix4f::Zero(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+inline constexpr Matrix4f Matrix4f::Identity(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
 
 #endif
