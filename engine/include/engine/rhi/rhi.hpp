@@ -148,7 +148,7 @@ namespace core::rhi
         virtual bool submit_commandbuffer(CommandBuffer* cmds) = 0;
         virtual Fence* submit_commandbuffer_fenced(CommandBuffer* cmds) = 0;
 
-        virtual void destroy_fence(Fence* fence) = 0;
+        virtual void release_fence(Fence* fence) = 0;
 
         virtual std::string get_name() const = 0;
     };

@@ -22,9 +22,11 @@ int main() {
     auto fence = device->submit_commandbuffer_fenced(cmd);
 
     fence->wait();
-    device->destroy_fence(fence);
+    device->release_fence(fence);
 
     spdlog::info("Completed!");
 
     delete device;
+
+    std::cin.get();
 }
