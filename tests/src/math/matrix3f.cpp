@@ -112,3 +112,27 @@ TEST_CASE("Matrix3f arithmetic with other matrices", "[Matrix3]") {
         REQUIRE(r.m22 == Catch::Approx(b.m22));
     }
 }
+
+TEST_CASE("Matrix properties", "[Matrix3]") {
+
+    Matrix3f i = Matrix3f().Identity;
+
+
+
+    SECTION("Determinant using Sarrus' method") {
+
+        REQUIRE(i.determinant() == Catch::Approx(1.0f));
+
+        Matrix3f z = i;
+
+        // Let's make the second row equal to the first
+        for (int i = 0; i <= 2; i++) {
+            z.data[i + 3] = z.data[i];
+        }
+
+        // The determinant should be zero because we have two rows that are equal to each other
+        REQUIRE(z.determinant() == Catch::Approx(0.0f));
+    
+    }
+
+}

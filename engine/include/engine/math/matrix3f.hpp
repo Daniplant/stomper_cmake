@@ -22,6 +22,8 @@ namespace core::math
 
         explicit constexpr Matrix3f(float v);
 
+        constexpr float determinant();
+
         constexpr CORE_FORCE_INLINE Matrix3f operator-() const;
 
         constexpr CORE_FORCE_INLINE bool operator==(const Matrix3f& rhs) const;
@@ -39,6 +41,8 @@ namespace core::math
         constexpr CORE_FORCE_INLINE Matrix3f operator*(float rhs) const;
 
         constexpr CORE_FORCE_INLINE Matrix3f operator/(float rhs) const;
+
+        
 
         union {
             struct
