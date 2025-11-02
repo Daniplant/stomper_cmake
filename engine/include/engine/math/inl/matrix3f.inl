@@ -35,13 +35,6 @@ constexpr Matrix3f::Matrix3f(float m00, float m01, float m02, float m10, float m
     , m22(m22)
     { }
 
-
-constexpr float Matrix3f::determinant() {
-    // Calculates the determinant using Sarrus' method
-  return (data[0] * data[4] * data[8]) + (data[1] * data[5] * data[6]) + (data[2] * data[3] * data[7])
-        - (data[0] * data[5] * data[7]) - (data[1] * data[3] * data[8]) - (data[2] * data[4] * data[6]);
-}
-
 constexpr Matrix3f Matrix3f::operator-() const { return { -rows[0], -rows[1], -rows[2] }; }
 
 constexpr bool Matrix3f::operator==(const Matrix3f& rhs) const {
@@ -77,6 +70,14 @@ constexpr Matrix3f Matrix3f::operator-(float rhs) const { return { rows[0] - Vec
 constexpr Matrix3f Matrix3f::operator*(float rhs) const { return { rows[0] * rhs, rows[1] * rhs, rows[2] * rhs }; }
 
 constexpr Matrix3f Matrix3f::operator/(float rhs) const { return { rows[0] / rhs, rows[1] / rhs, rows[2] / rhs }; }
+
+
+constexpr float Matrix3f::determinant() 
+{
+    // Calculates the determinant using Sarrus' method
+    return (data[0] * data[4] * data[8]) + (data[1] * data[5] * data[6]) + (data[2] * data[3] * data[7]) - (data[0] * data[5] * data[7])
+        - (data[1] * data[3] * data[8]) - (data[2] * data[4] * data[6]);
+}
 
 inline constexpr Matrix3f Matrix3f::Zero(0, 0, 0, 0, 0, 0, 0, 0, 0);
 inline constexpr Matrix3f Matrix3f::Identity(1, 0, 0, 0, 1, 0, 0, 0, 1);
